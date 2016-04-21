@@ -48,6 +48,8 @@ module mkmif(
              input wire           clk,
              input wire           reset_n,
 
+             input wire           alarm,
+
              output wire          spi_sclk,
              output wire          spi_cs_n,
              input wire           spi_s0,
@@ -87,10 +89,71 @@ module mkmif(
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
-  reg read_op_reg
-  reg read_op_new
-  reg write_op_reg
-  reg write_op_new
+  reg read_op_reg;
+  reg read_op_new;
+  reg write_op_reg;
+  reg write_op_new;
+
+  reg ready_reg;
+  reg ready_new;
+  reg ready_we;
+
+  reg valid_reg;
+  reg valid_new;
+  reg valid_we;
+
+  reg spi_sclk_reg;
+  reg spi_sclk_new;
+  reg spi_sclk_we;
+  reg spi_di_reg;
+  reg spi_di_new;
+  reg spi_di_we;
+  reg spi_do_sample0_reg;
+  reg spi_do_sample1_reg;
+  reg spi_do_reg;
+  reg spi_do_we;
+
+  reg [15 : 0] spi_sclk_ctr_reg;
+  reg [15 : 0] spi_sclk_ctr_new;
+  reg          spi_sclk_ctr_inc;
+  reg          spi_sclk_ctr_rst;
+  reg          spi_sclk_ctr_we;
+  reg          spi_sclk_ctr_en;
+
+  reg [15 : 0] spi_sclk_middle_ctr_reg;
+  reg [15 : 0] spi_sclk_middle_ctr_new;
+  reg          spi_sclk_middle_ctr_inc;
+  reg          spi_sclk_middle_ctr_rst;
+  reg          spi_sclk_middle_ctr_we;
+  reg          spi_sclk_middle_ctr_en;
+
+  reg alarm_sample0_reg;
+  reg alarm_sample1_reg;
+  reg alarm_flank0_reg;
+  reg alarm_flank1_reg;
+  reg alarm_reg;
+  reg alarm_new;
+  reg alarm_we;
+  reg alarm_event_reg;
+  reg alarm_event_new;
+  reg alarm_event_set;
+  reg alarm_event_rst;
+  reg alarm_event_we;
+
+  reg [10 : 0] addr_reg;
+  reg          addr_we;
+
+  reg [31 : 0] spi_read_data_reg;
+  reg [31 : 0] spi_read_data_new;
+  reg          spi_read_data_nxt;
+  reg          spi_read_data_rst;
+  reg          spi_read_data_we;
+
+  reg [31 : 0] spi_write_data_reg;
+  reg [31 : 0] spi_write_data_new;
+  reg          spi_write_data_set;
+  reg          spi_write_data_rst;
+  reg          spi_write_data_we;
 
 
   //----------------------------------------------------------------
@@ -115,13 +178,42 @@ module mkmif(
     begin
       if (!reset_n)
         begin
-          read_op_reg  <= 0;
-          write_op_reg <= 0;
+          ready_reg          <= 0;
+          valid_reg          <= 0;
+          alarm_reg          <= 0;
+          read_op_reg        <= 0;
+          write_op_reg       <= 0;
+          alarm_sample0_reg  <= 0;
+          alarm_sample1_reg  <= 0;
+          alarm_event_reg    <= 0;
+          spi_sclk_reg       <= 0;
+          spi_di_reg         <= 0;
+          spi_do_sample0_reg <= 0;
+          spi_do_sample1_reg <= 0;
+          spi_do_reg         <= 0;
+          addr_reg           <= 11'h0;
+          spi_read_data_reg  <= 32'h0;
+          spi_write_data_reg <= 32'h0;
         end
       else
         begin
           read_op_reg  <= read_op_new;
           write_op_reg <= write_op_new;
+
+          if (ready_we)
+            ready_reg <= ready_new;
+
+          if (valid_we)
+            valid_reg <= valid_new;
+
+          if (addr_we)
+            addr_reg <= write_data[10 : 0];
+
+          if (spi_read_data_we)
+            spi_read_data_reg <= spi_read_data_new;
+
+          if (spi_write_data_we)
+            spi_write_data_reg <= spi_write_data_new;
         end
     end // reg_update
 
@@ -131,9 +223,11 @@ module mkmif(
   //----------------------------------------------------------------
   always @*
     begin : api
-      read_op_new   = 0;
-      write_op_new  = 0;
-      tmp_read_data = 32'h00000000;
+      spi_write_data_set = 0;
+      read_op_new        = 0;
+      write_op_new       = 0;
+      addr_we            = 0;
+      tmp_read_data      = 32'h00000000;
 
       if (cs)
         begin
@@ -145,6 +239,9 @@ module mkmif(
                     read_op_new  = write_data[CTRL_READ_BIT];
                     write_op_new = write_data[CTRL_WRITE_BIT];
                   end
+
+                ADDR_EMEM_ADDR:
+                  addr_we = 1;
 
                 default:
                   begin
@@ -165,9 +262,11 @@ module mkmif(
                   tmp_read_data = CORE_VERSION;
 
                 ADDR_STATUS:
-                    tmp_read_data = {30'h0, {valid_reg, ready_reg}};
+                    tmp_read_data = {29'h0, {alarm_reg, valid_reg, ready_reg}};
 
                 default:
+                  begin
+                  end
               endcase // case (address)
             end
         end

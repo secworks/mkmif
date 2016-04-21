@@ -136,9 +136,15 @@ module mkmif(
   reg          spi_di_data_done;
   reg  [7 : 0] spi_di_data;
 
-  reg  [2 : 0] spi_di_ctr_reg;
-  reg  [2 : 0] spi_di_ctr_new;
-  reg  [2 : 0] spi_di_ctr_we;
+  reg  [2 : 0] spi_di_bit_ctr_reg;
+  reg  [2 : 0] spi_di_bit_ctr_new;
+  reg          spi_di_bit_ctr_we;
+
+  reg  [2 : 0] spi_byte_ctr_reg;
+  reg  [2 : 0] spi_byte_ctr_new;
+  reg          spi_byte_ctr_inc;
+  reg          spi_byte_ctr_rst;
+  reg          spi_byte_ctr_we;
 
   reg [15 : 0] spi_sclk_div_reg;
   reg          spi_sclk_div_we;
@@ -208,28 +214,31 @@ module mkmif(
     begin
       if (!reset_n)
         begin
-          ready_reg          <= 0;
-          valid_reg          <= 0;
-          alarm_reg          <= 0;
-          read_op_reg        <= 0;
-          write_op_reg       <= 0;
-          alarm_sample0_reg  <= 0;
-          alarm_sample1_reg  <= 0;
-          alarm_flank0_reg   <= 0;
-          alarm_flank1_reg   <= 0;
-          alarm_event_reg    <= 0;
-          alarm_event_reg    <= 0;
-          spi_sclk_div_reg   <= DEFAULT_SCLK_DIV;
-          spi_sclk_reg       <= 0;
-          spi_sclk_ctr_reg   <= 16'h00;
-          spi_do_sample0_reg <= 0;
-          spi_do_sample1_reg <= 0;
-          spi_do_reg         <= 0;
-          spi_cs_n_reg       <= 1;
-          addr_reg           <= 11'h0;
-          spi_read_data_reg  <= 32'h0;
-          spi_write_data_reg <= 32'h0;
-          mkmif_ctrl_reg     <= CTRL_IDLE;
+          ready_reg           <= 0;
+          valid_reg           <= 0;
+          read_op_reg         <= 0;
+          write_op_reg        <= 0;
+          addr_reg            <= 11'h0;
+          alarm_reg           <= 0;
+          alarm_sample0_reg   <= 0;
+          alarm_sample1_reg   <= 0;
+          alarm_flank0_reg    <= 0;
+          alarm_flank1_reg    <= 0;
+          alarm_event_reg     <= 0;
+          alarm_event_reg     <= 0;
+          spi_sclk_div_reg    <= DEFAULT_SCLK_DIV;
+          spi_sclk_reg        <= 0;
+          spi_sclk_ctr_reg    <= 16'h0;
+          spi_di_data_reg     <= 8'h0;
+          spi_di_bit_ctr_reg  <= 3'h0;
+          spi_do_sample0_reg  <= 0;
+          spi_do_sample1_reg  <= 0;
+          spi_do_reg          <= 0;
+          spi_cs_n_reg        <= 1;
+          spi_byte_ctr_reg    <= 12'h0;
+          spi_read_data_reg   <= 32'h0;
+          spi_write_data_reg  <= 32'h0;
+          mkmif_ctrl_reg      <= CTRL_IDLE;
         end
       else
         begin
@@ -268,8 +277,11 @@ module mkmif(
           if (spi_di_data_we)
             spi_di_data_reg <= spi_di_data_new;
 
-          if (spi_di_ctr_we)
-            spi_di_ctr_reg <= spi_di_ctr_new;
+          if (spi_di_bit_ctr_we)
+            spi_di_bit_ctr_reg <= spi_di_bit_ctr_new;
+
+          if (spi_byte_ctr_we)
+            spi_byte_ctr_reg <= spi_byte_ctr_new;
 
           if (spi_do_we)
             spi_do_reg <= spi_do_sample1_reg;
@@ -360,6 +372,26 @@ module mkmif(
         end
     end // api
 
+
+  //----------------------------------------------------------------
+  // alarm_detect
+  //
+  // Detect an alarm signal and when that happens sets the
+  // alarm_event register.
+  //----------------------------------------------------------------
+  always @*
+    begin : alarm_detect
+      alarm_event_new = 0;
+      alarm_event_we  = 0;
+
+      if ((alarm_flank0_reg) && (!alarm_flank1_reg))
+        begin
+          alarm_event_new = 1;
+          alarm_event_we  = 1;
+        end
+    end // alarm_detect
+
+
   //----------------------------------------------------------------
   // spi_di_gen
   //
@@ -370,21 +402,21 @@ module mkmif(
   //----------------------------------------------------------------
   always @*
     begin : spi_di_gen
-      spi_di_data_new  = 8'h00;
-      spi_di_data_we   = 0;
-      spi_di_data_done = 0;
-      spi_di_ctr_new   = 3'h0;
-      spi_di_ctr_we    = 0;
+      spi_di_data_new    = 8'h00;
+      spi_di_data_we     = 0;
+      spi_di_data_done   = 0;
+      spi_di_bit_ctr_new = 3'h0;
+      spi_di_bit_ctr_we  = 0;
 
-      if (spi_di_ctr_reg == 3'h7)
+      if (spi_di_bit_ctr_reg == 3'h7)
         spi_di_data_done = 1;
 
       if (spi_di_data_set)
         begin
-          spi_di_data_new = spi_di_data;
-          spi_di_data_we  = 1;
-          spi_di_ctr_new  = 3'h0;
-          spi_di_ctr_we   = 1;
+          spi_di_data_new    = spi_di_data;
+          spi_di_data_we     = 1;
+          spi_di_bit_ctr_new = 3'h0;
+          spi_di_bit_ctr_we  = 1;
         end
 
       if (spi_di_data_nxt)
@@ -392,8 +424,8 @@ module mkmif(
           spi_di_data_new = {spi_di_data_reg[6 : 0], 1'b0};
           spi_di_data_we  = 1;
 
-          spi_di_ctr_new  = spi_di_ctr_reg + 1'b1;
-          spi_di_ctr_we   = 1;
+          spi_di_bit_ctr_new  = spi_di_bit_ctr_reg + 1'b1;
+          spi_di_bit_ctr_we   = 1;
         end
 
     end // spi_di_gen
@@ -447,28 +479,34 @@ module mkmif(
               spi_sclk_we      = 1;
             end
           else
-            spi_sclk_ctr_new = spi_sclk_ctr_new + 1;
+            spi_sclk_ctr_new = spi_sclk_ctr_new + 1'b1;
         end
     end // siphash_sclk_gen
 
 
   //----------------------------------------------------------------
-  // alarm_detect
+  // spi_byte_ctr
   //
-  // Detect an alarm signal and when that happens sets the
-  // alarm_event register.
+  // Byte counter used by the FSM to keep track of the bytes
+  // being read or written.
   //----------------------------------------------------------------
   always @*
-    begin : alarm_detect
-      alarm_event_new = 0;
-      alarm_event_we  = 0;
+    begin : spi_byte_ctr
+      spi_byte_ctr_new = 12'h0;
+      spi_byte_ctr_we  = 1'b0;
 
-      if ((alarm_flank0_reg) && (!alarm_flank1_reg))
+      if (spi_byte_ctr_rst)
         begin
-          alarm_event_new = 1;
-          alarm_event_we  = 1;
+          spi_byte_ctr_new = 12'h0;
+          spi_byte_ctr_we  = 1'b1;
         end
-    end // alarm_detect
+
+      if (spi_byte_ctr_inc)
+        begin
+          spi_byte_ctr_new = spi_byte_ctr_reg + 1'b1;
+          spi_byte_ctr_we  = 1'b1;
+        end
+    end // spi_byte_ctr
 
 
   //----------------------------------------------------------------
@@ -488,6 +526,8 @@ module mkmif(
       spi_do_we          = 0;
       spi_cs_n_new       = 0;
       spi_cs_n_we        = 0;
+      spi_byte_ctr_inc   = 0;
+      spi_byte_ctr_rst   = 0;
       spi_write_data_rst = 0;
       mkmif_ctrl_new     = CTRL_IDLE;
       mkmif_ctrl_we      = 0;

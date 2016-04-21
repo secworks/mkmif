@@ -528,8 +528,11 @@ module mkmif(
 
         CTRL_ALARM_START:
           begin
-            mkmif_ctrl_new = CTRL_IDLE;
-            mkmif_ctrl_we  = 1;
+            if (spi_di_data_done)
+              begin
+                mkmif_ctrl_new = CTRL_IDLE;
+                mkmif_ctrl_we  = 1;
+              end
           end
 
         default:

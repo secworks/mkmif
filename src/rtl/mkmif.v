@@ -118,9 +118,6 @@ module mkmif(
   reg spi_sclk_new;
   reg spi_sclk_we;
   reg spi_sclk_en;
-  reg spi_di_reg;
-  reg spi_di_new;
-  reg spi_di_we;
   reg spi_do_sample0_reg;
   reg spi_do_sample1_reg;
   reg spi_do_reg;
@@ -152,8 +149,6 @@ module mkmif(
   reg alarm_we;
   reg alarm_event_reg;
   reg alarm_event_new;
-  reg alarm_event_set;
-  reg alarm_event_rst;
   reg alarm_event_we;
 
   reg [10 : 0] addr_reg;
@@ -168,6 +163,7 @@ module mkmif(
   reg [31 : 0] spi_write_data_reg;
   reg [31 : 0] spi_write_data_new;
   reg          spi_write_data_set;
+  reg          spi_write_data_nxt;
   reg          spi_write_data_rst;
   reg          spi_write_data_we;
 
@@ -186,9 +182,9 @@ module mkmif(
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
   assign read_data = tmp_read_data;
-  assign spi_di =  spi_di_reg;
-  assign spi_sclk = spi_sclk_reg;
-  assign spi_cs_n = spi_cs_n_reg;
+  assign spi_di    = spi_write_data_reg[0];
+  assign spi_sclk  = spi_sclk_reg;
+  assign spi_cs_n  = spi_cs_n_reg;
 
 
   //----------------------------------------------------------------
@@ -208,14 +204,17 @@ module mkmif(
           write_op_reg       <= 0;
           alarm_sample0_reg  <= 0;
           alarm_sample1_reg  <= 0;
+          alarm_flank0_reg   <= 0;
+          alarm_flank1_reg   <= 0;
+          alarm_event_reg    <= 0;
           alarm_event_reg    <= 0;
           spi_sclk_div_reg   <= DEFAULT_SCLK_DIV;
           spi_sclk_reg       <= 0;
           spi_sclk_ctr_reg   <= 16'h00;
-          spi_di_reg         <= 0;
           spi_do_sample0_reg <= 0;
           spi_do_sample1_reg <= 0;
           spi_do_reg         <= 0;
+          spi_cs_n_reg       <= 1;
           addr_reg           <= 11'h0;
           spi_read_data_reg  <= 32'h0;
           spi_write_data_reg <= 32'h0;
@@ -226,6 +225,14 @@ module mkmif(
           read_op_reg  <= read_op_new;
           write_op_reg <= write_op_new;
 
+          spi_do_sample0_reg <= spi_do;
+          spi_do_sample1_reg <= spi_do_sample0_reg;
+
+          alarm_sample0_reg <= alarm;
+          alarm_sample1_reg <= alarm_sample0_reg;
+          alarm_flank0_reg  <= alarm_sample1_reg;
+          alarm_flank1_reg  <= alarm_flank0_reg;
+
           if (ready_we)
             ready_reg <= ready_new;
 
@@ -234,6 +241,12 @@ module mkmif(
 
           if (addr_we)
             addr_reg <= write_data[10 : 0];
+
+          if (spi_cs_n_we)
+            spi_cs_n_reg <= spi_cs_n_new;
+
+          if (spi_do_we)
+            spi_do_reg <= spi_do_sample1_reg;
 
           if (spi_sclk_we)
             spi_sclk_reg <= spi_sclk_new;
@@ -328,6 +341,36 @@ module mkmif(
 
 
   //----------------------------------------------------------------
+  // spi_write_data_gen
+  //
+  // Generates the data to be written.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_write_data_gen
+      spi_write_data_new = 32'h00;
+      spi_write_data_we  = 0;
+
+      if (spi_write_data_set)
+        begin
+          spi_write_data_new = write_data;
+          spi_write_data_we  = 1;
+        end
+
+      if (spi_write_data_nxt)
+        begin
+          spi_write_data_new = {1'b0, spi_write_data_reg[31 : 1]};
+          spi_write_data_we  = 1;
+        end
+
+      if (spi_write_data_rst)
+        begin
+          spi_write_data_new = 32'h00;
+          spi_write_data_we  = 1;
+        end
+    end // spi_write_data_gen
+
+
+  //----------------------------------------------------------------
   // spi_sclk_gen
   //
   // Generator of the spi_sclk clock.
@@ -353,18 +396,43 @@ module mkmif(
 
 
   //----------------------------------------------------------------
+  // alarm_detect
+  //
+  // Detect an alarm signal and when that happens sets the
+  // alarm_event register.
+  //----------------------------------------------------------------
+  always @*
+    begin : alarm_detect
+      alarm_event_new = 0;
+      alarm_event_we  = 0;
+
+      if ((alarm_flank0_reg) && (!alarm_flank1_reg))
+        begin
+          alarm_event_new = 1;
+          alarm_event_we  = 1;
+        end
+    end // alarm_detect
+
+
+  //----------------------------------------------------------------
   // mkmif_ctrl
   // Main control FSM.
   //----------------------------------------------------------------
   always @*
     begin : mkmif_ctrl
-      ready_new      = 0;
-      ready_we       = 0;
-      valid_new      = 0;
-      valid_we       = 0;
-      spi_sclk_en    = 0;
-      mkmif_ctrl_new = CTRL_IDLE;
-      mkmif_ctrl_we  = 0;
+      ready_new          = 0;
+      ready_we           = 0;
+      valid_new          = 0;
+      valid_we           = 0;
+      spi_sclk_en        = 0;
+      spi_do_we          = 0;
+      spi_cs_n_new       = 0;
+      spi_cs_n_we        = 0;
+      spi_write_data_set = 0;
+      spi_write_data_nxt = 0;
+      spi_write_data_rst = 0;
+      mkmif_ctrl_new     = CTRL_IDLE;
+      mkmif_ctrl_we      = 0;
 
       case (mkmif_ctrl_reg)
         CTRL_IDLE:
@@ -380,6 +448,12 @@ module mkmif(
                 mkmif_ctrl_new = CTRL_WRITE_START;
                 mkmif_ctrl_we  = 1;
               end
+
+            if (alarm_event_reg)
+              begin
+                mkmif_ctrl_new = CTRL_ALARM_START;
+                mkmif_ctrl_we  = 1;
+              end
           end
 
         CTRL_READ_START:
@@ -389,6 +463,12 @@ module mkmif(
           end
 
         CTRL_WRITE_START:
+          begin
+            mkmif_ctrl_new = CTRL_IDLE;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_ALARM_START:
           begin
             mkmif_ctrl_new = CTRL_IDLE;
             mkmif_ctrl_we  = 1;

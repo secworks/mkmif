@@ -85,6 +85,11 @@ module mkmif(
   localparam CORE_NAME1   = 32'h66202020; // "f   "
   localparam CORE_VERSION = 32'h302e3130; // "0.10"
 
+  localparam SPI_READ_DATA_CMD    = 8'h03;
+  localparam SPI_WRITE_DATA_CMD   = 8'h02;
+  localparam SPI_READ_STATUS_CMD  = 8'h05;
+  localparam SPI_WRITE_STATUS_CMD = 8'h01;
+
   localparam CTRL_IDLE        = 0;
   localparam CTRL_READ_START  = 1;
   localparam CTRL_READ_END    = 2;
@@ -122,6 +127,10 @@ module mkmif(
   reg spi_do_sample1_reg;
   reg spi_do_reg;
   reg spi_do_we;
+
+  reg spi_di_reg;
+  reg spi_di_new;
+  reg spi_di_we;
 
   reg [15 : 0] spi_sclk_div_reg;
   reg          spi_sclk_div_we;
@@ -182,9 +191,9 @@ module mkmif(
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
   assign read_data = tmp_read_data;
-  assign spi_di    = spi_write_data_reg[0];
   assign spi_sclk  = spi_sclk_reg;
   assign spi_cs_n  = spi_cs_n_reg;
+  assign spi_di    = spi_di_reg;
 
 
   //----------------------------------------------------------------

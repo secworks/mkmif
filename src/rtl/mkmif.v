@@ -148,8 +148,8 @@ module mkmif(
   reg  [2 : 0] spi_di_bit_ctr_new;
   reg          spi_di_bit_ctr_we;
 
-  reg  [2 : 0] spi_byte_ctr_reg;
-  reg  [2 : 0] spi_byte_ctr_new;
+  reg [11 : 0] spi_byte_ctr_reg;
+  reg [11 : 0] spi_byte_ctr_new;
   reg          spi_byte_ctr_inc;
   reg          spi_byte_ctr_rst;
   reg          spi_byte_ctr_we;
@@ -188,7 +188,6 @@ module mkmif(
   reg [31 : 0] spi_write_data_reg;
   reg [31 : 0] spi_write_data_new;
   reg          spi_write_data_set;
-  reg          spi_write_data_nxt;
   reg          spi_write_data_rst;
   reg          spi_write_data_we;
 
@@ -266,6 +265,12 @@ module mkmif(
 
           if (valid_we)
             valid_reg <= valid_new;
+
+          if (alarm_we)
+            alarm_reg <= alarm_new;
+
+          if (alarm_event_we)
+            alarm_event_reg <= alarm_event_new;
 
           if (addr_we)
             addr_reg <= write_data[10 : 0];
@@ -383,9 +388,6 @@ module mkmif(
 
   //----------------------------------------------------------------
   // alarm_detect
-  //
-  // Detect an alarm signal and when that happens sets the
-  // alarm_event register.
   //----------------------------------------------------------------
   always @*
     begin : alarm_detect
@@ -463,6 +465,30 @@ module mkmif(
 
 
   //----------------------------------------------------------------
+  // spi_read_data_gen
+  //
+  // Generates the data to be written.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_read_data_gen
+      spi_read_data_new = 32'h0;
+      spi_read_data_we  = 0;
+
+      if (spi_read_data_rst)
+        begin
+          spi_read_data_new = 32'h0;
+          spi_read_data_we  = 1;
+        end
+
+      if (spi_read_data_nxt)
+        begin
+          spi_read_data_new = {spi_read_data_reg[30 : 0], spi_do_reg};
+          spi_read_data_we  = 1;
+        end
+    end // spi_read_data_gen
+
+
+  //----------------------------------------------------------------
   // spi_sclk_gen
   //
   // Generator of the spi_sclk clock. The generator includes
@@ -527,6 +553,8 @@ module mkmif(
       ready_we           = 0;
       valid_new          = 0;
       valid_we           = 0;
+      alarm_new          = 0;
+      alarm_we           = 0;
       spi_sclk_en        = 0;
       spi_di_data_set    = 0;
       spi_di_data_nxt    = 0;
@@ -537,6 +565,11 @@ module mkmif(
       spi_byte_ctr_inc   = 0;
       spi_byte_ctr_rst   = 0;
       spi_write_data_rst = 0;
+      spi_sclk_ctr_inc   = 0;
+      spi_sclk_ctr_rst   = 0;
+      spi_sclk_ctr_en    = 0;
+      spi_read_data_nxt  = 0;
+      spi_read_data_rst  = 0;
       mkmif_ctrl_new     = CTRL_IDLE;
       mkmif_ctrl_we      = 0;
 
@@ -628,17 +661,18 @@ module mkmif(
 
         CTRL_WRITE_START:
           begin
+            spi_di_data     = spi_write_data_reg[7 : 0];
+            spi_di_data_set = 1;
             mkmif_ctrl_new = CTRL_IDLE;
             mkmif_ctrl_we  = 1;
           end
 
         CTRL_ALARM_START:
           begin
-            if (spi_di_data_done)
-              begin
-                mkmif_ctrl_new = CTRL_IDLE;
-                mkmif_ctrl_we  = 1;
-              end
+            alarm_new = 1;
+            alarm_we  = 1;
+            mkmif_ctrl_new = CTRL_IDLE;
+            mkmif_ctrl_we  = 1;
           end
 
         default:

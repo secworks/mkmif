@@ -90,13 +90,21 @@ module mkmif(
   localparam SPI_READ_STATUS_CMD  = 8'h05;
   localparam SPI_WRITE_STATUS_CMD = 8'h01;
 
-  localparam CTRL_IDLE        = 0;
-  localparam CTRL_READ_START  = 1;
-  localparam CTRL_READ_END    = 2;
-  localparam CTRL_WRITE_START = 3;
-  localparam CTRL_WRITE_END   = 4;
-  localparam CTRL_ALARM_START = 5;
-  localparam CTRL_ALARM_END   = 6;
+  localparam STATUS_SEQ_MODE_NO_HOLD = 8'b01000001;
+
+  localparam CTRL_IDLE                   = 0;
+  localparam CTRL_WRITE_STATUS_CMD       = 1;
+  localparam CTRL_WRITE_STATUS_CMD_LOOP  = 2;
+  localparam CTRL_WRITE_STATUS_DATA      = 3;
+  localparam CTRL_WRITE_STATUS_DATA_LOOP = 4;
+  localparam CTRL_WRITE_STATUS_DONE      = 5;
+  localparam CTRL_READY                  = 6;
+  localparam CTRL_READ_START             = 7;
+  localparam CTRL_READ_END               = 8;
+  localparam CTRL_WRITE_START            = 9;
+  localparam CTRL_WRITE_END              = 10;
+  localparam CTRL_ALARM_START            = 11;
+  localparam CTRL_ALARM_END              = 12;
 
 
   //----------------------------------------------------------------
@@ -184,8 +192,8 @@ module mkmif(
   reg          spi_write_data_rst;
   reg          spi_write_data_we;
 
-  reg [3 : 0]  mkmif_ctrl_reg;
-  reg [3 : 0]  mkmif_ctrl_new;
+  reg [4 : 0]  mkmif_ctrl_reg;
+  reg [4 : 0]  mkmif_ctrl_new;
   reg          mkmif_ctrl_we;
 
 
@@ -524,7 +532,7 @@ module mkmif(
       spi_di_data_nxt    = 0;
       spi_di_data        = 8'h00;
       spi_do_we          = 0;
-      spi_cs_n_new       = 0;
+      spi_cs_n_new       = 1;
       spi_cs_n_we        = 0;
       spi_byte_ctr_inc   = 0;
       spi_byte_ctr_rst   = 0;
@@ -534,6 +542,64 @@ module mkmif(
 
       case (mkmif_ctrl_reg)
         CTRL_IDLE:
+          begin
+            mkmif_ctrl_new = CTRL_WRITE_STATUS_CMD;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_STATUS_CMD:
+          begin
+            spi_di_data_set = 1;
+            spi_di_data    = SPI_WRITE_STATUS_CMD;
+            spi_cs_n_new   = 0;
+            spi_cs_n_we    = 0;
+            spi_sclk_en    = 1;
+            mkmif_ctrl_new = CTRL_WRITE_STATUS_CMD_LOOP;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_STATUS_CMD_LOOP:
+          begin
+            spi_di_data_nxt = 1;
+            spi_sclk_en     = 1;
+            if (spi_di_data_done)
+              begin
+                mkmif_ctrl_new = CTRL_WRITE_STATUS_DATA;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_WRITE_STATUS_DATA:
+          begin
+            spi_di_data_set = 1;
+            spi_di_data     = STATUS_SEQ_MODE_NO_HOLD;
+            spi_di_data_set = 1;
+            mkmif_ctrl_new = CTRL_WRITE_STATUS_DATA_LOOP;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_STATUS_DATA_LOOP:
+          begin
+            spi_di_data_nxt = 1;
+            spi_sclk_en     = 1;
+            if (spi_di_data_done)
+              begin
+                mkmif_ctrl_new = CTRL_WRITE_STATUS_DONE;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_WRITE_STATUS_DONE:
+          begin
+            ready_new      = 1;
+            ready_we       = 1;
+            spi_cs_n_new   = 1;
+            spi_cs_n_we    = 1;
+            mkmif_ctrl_new = CTRL_READY;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_READY:
           begin
             if (read_op_reg)
               begin

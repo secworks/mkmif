@@ -52,8 +52,8 @@ module mkmif(
 
              output wire          spi_sclk,
              output wire          spi_cs_n,
-             input wire           spi_s0,
-             output wire          spi_si,
+             input wire           spi_do,
+             output wire          spi_di,
 
              input wire           cs,
              input wire           we,
@@ -81,9 +81,17 @@ module mkmif(
 
   localparam DEFAULT_SCLK_RATE = 32'h1000;
 
-  localparam CORE_NAME0          = 32'h6d6b6d69; // "mkmi"
-  localparam CORE_NAME1          = 32'h66202020; // "f   "
-  localparam CORE_VERSION        = 32'h302e3130; // "0.10"
+  localparam CORE_NAME0   = 32'h6d6b6d69; // "mkmi"
+  localparam CORE_NAME1   = 32'h66202020; // "f   "
+  localparam CORE_VERSION = 32'h302e3130; // "0.10"
+
+  localparam CTRL_IDLE        = 0;
+  localparam CTRL_READ_START  = 1;
+  localparam CTRL_READ_END    = 2;
+  localparam CTRL_WRITE_START = 3;
+  localparam CTRL_WRITE_END   = 4;
+  localparam CTRL_ALARM_START = 5;
+  localparam CTRL_ALARM_END   = 6;
 
 
   //----------------------------------------------------------------
@@ -101,6 +109,10 @@ module mkmif(
   reg valid_reg;
   reg valid_new;
   reg valid_we;
+
+  reg spi_cs_n_reg;
+  reg spi_cs_n_new;
+  reg spi_cs_n_we;
 
   reg spi_sclk_reg;
   reg spi_sclk_new;
@@ -155,6 +167,10 @@ module mkmif(
   reg          spi_write_data_rst;
   reg          spi_write_data_we;
 
+  reg [3 : 0]  mkmif_ctrl_reg;
+  reg [3 : 0]  mkmif_ctrl_new;
+  reg          mkmif_ctrl_we;
+
 
   //----------------------------------------------------------------
   // Wires.
@@ -166,6 +182,9 @@ module mkmif(
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
   assign read_data = tmp_read_data;
+  assign spi_di =  spi_di_reg;
+  assign spi_sclk = spi_sclk_reg;
+  assign spi_cs_n = spi_cs_n_reg;
 
 
   //----------------------------------------------------------------
@@ -194,6 +213,7 @@ module mkmif(
           addr_reg           <= 11'h0;
           spi_read_data_reg  <= 32'h0;
           spi_write_data_reg <= 32'h0;
+          mkmif_ctrl_reg     <= CTRL_IDLE;
         end
       else
         begin
@@ -214,6 +234,10 @@ module mkmif(
 
           if (spi_write_data_we)
             spi_write_data_reg <= spi_write_data_new;
+
+          if (mkmif_ctrl_we)
+            mkmif_ctrl_reg <= mkmif_ctrl_new;
+
         end
     end // reg_update
 
@@ -271,6 +295,51 @@ module mkmif(
             end
         end
     end // api
+
+
+  //----------------------------------------------------------------
+  // mkmif_ctrl
+  // Main control FSM.
+  //----------------------------------------------------------------
+  always @*
+    begin : mkmif_ctrl
+      mkmif_ctrl_new = CTRL_IDLE;
+      mkmif_ctrl_we  = 0;
+
+      case (mkmif_ctrl_reg)
+        CTRL_IDLE:
+          begin
+            if (read_op_reg)
+              begin
+                mkmif_ctrl_new = CTRL_READ_START;
+                mkmif_ctrl_we  = 1;
+              end
+
+            if (write_op_reg)
+              begin
+                mkmif_ctrl_new = CTRL_WRITE_START;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_READ_START:
+          begin
+            mkmif_ctrl_new = CTRL_IDLE;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_START:
+          begin
+            mkmif_ctrl_new = CTRL_IDLE;
+            mkmif_ctrl_we  = 1;
+          end
+
+        default:
+          begin
+          end
+      endcase // case (mkmif_ctrl_reg)
+    end // mkmif_ctrl
+
 endmodule // mkmif
 
 //======================================================================

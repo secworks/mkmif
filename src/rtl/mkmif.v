@@ -79,7 +79,7 @@ module mkmif(
   localparam ADDR_EMEM_ADDR   = 8'h10;
   localparam ADDR_EMEM_DATA   = 8'h20;
 
-  localparam DEFAULT_SCLK_RATE = 32'h1000;
+  localparam DEFAULT_SCLK_DIV = 32'h1000;
 
   localparam CORE_NAME0   = 32'h6d6b6d69; // "mkmi"
   localparam CORE_NAME1   = 32'h66202020; // "f   "
@@ -124,6 +124,9 @@ module mkmif(
   reg spi_do_sample1_reg;
   reg spi_do_reg;
   reg spi_do_we;
+
+  reg [15 : 0] spi_sclk_div_reg;
+  reg          spi_sclk_div_we;
 
   reg [15 : 0] spi_sclk_ctr_reg;
   reg [15 : 0] spi_sclk_ctr_new;
@@ -205,6 +208,7 @@ module mkmif(
           alarm_sample0_reg  <= 0;
           alarm_sample1_reg  <= 0;
           alarm_event_reg    <= 0;
+          spi_sclk_div_reg   <= DEFAULT_SCLK_DIV;
           spi_sclk_reg       <= 0;
           spi_di_reg         <= 0;
           spi_do_sample0_reg <= 0;
@@ -229,6 +233,9 @@ module mkmif(
           if (addr_we)
             addr_reg <= write_data[10 : 0];
 
+          if (spi_sclk_div_we)
+            spi_sclk_div_reg <= write_data[15 : 0];
+
           if (spi_read_data_we)
             spi_read_data_reg <= spi_read_data_new;
 
@@ -248,6 +255,7 @@ module mkmif(
   always @*
     begin : api
       spi_write_data_set = 0;
+      spi_sclk_div_we    = 0;
       read_op_new        = 0;
       write_op_new       = 0;
       addr_we            = 0;
@@ -264,8 +272,14 @@ module mkmif(
                     write_op_new = write_data[CTRL_WRITE_BIT];
                   end
 
+                ADDR_SCLK_DIV:
+                  spi_sclk_div_we = 1;
+
                 ADDR_EMEM_ADDR:
                   addr_we = 1;
+
+                ADDR_EMEM_DATA:
+                  spi_write_data_set = 1;
 
                 default:
                   begin
@@ -287,6 +301,14 @@ module mkmif(
 
                 ADDR_STATUS:
                     tmp_read_data = {29'h0, {alarm_reg, valid_reg, ready_reg}};
+                ADDR_SCLK_DIV:
+                  tmp_read_data = {16'h0, spi_sclk_div_reg};
+
+                ADDR_EMEM_ADDR:
+                  tmp_read_data = {20'h0, addr_reg};
+
+                ADDR_EMEM_DATA:
+                  tmp_read_data = spi_read_data_reg;
 
                 default:
                   begin

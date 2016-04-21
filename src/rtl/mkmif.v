@@ -79,7 +79,7 @@ module mkmif(
   localparam ADDR_EMEM_ADDR   = 8'h10;
   localparam ADDR_EMEM_DATA   = 8'h20;
 
-  localparam DEFAULT_SCLK_DIV = 32'h1000;
+  localparam DEFAULT_SCLK_DIV = 16'h1000;
 
   localparam CORE_NAME0   = 32'h6d6b6d69; // "mkmi"
   localparam CORE_NAME1   = 32'h66202020; // "f   "
@@ -117,6 +117,7 @@ module mkmif(
   reg spi_sclk_reg;
   reg spi_sclk_new;
   reg spi_sclk_we;
+  reg spi_sclk_en;
   reg spi_di_reg;
   reg spi_di_new;
   reg spi_di_we;
@@ -210,6 +211,7 @@ module mkmif(
           alarm_event_reg    <= 0;
           spi_sclk_div_reg   <= DEFAULT_SCLK_DIV;
           spi_sclk_reg       <= 0;
+          spi_sclk_ctr_reg   <= 16'h00;
           spi_di_reg         <= 0;
           spi_do_sample0_reg <= 0;
           spi_do_sample1_reg <= 0;
@@ -232,6 +234,12 @@ module mkmif(
 
           if (addr_we)
             addr_reg <= write_data[10 : 0];
+
+          if (spi_sclk_we)
+            spi_sclk_reg <= spi_sclk_new;
+
+          if (spi_sclk_ctr_we)
+            spi_sclk_ctr_reg <= spi_sclk_ctr_new;
 
           if (spi_sclk_div_we)
             spi_sclk_div_reg <= write_data[15 : 0];
@@ -305,7 +313,7 @@ module mkmif(
                   tmp_read_data = {16'h0, spi_sclk_div_reg};
 
                 ADDR_EMEM_ADDR:
-                  tmp_read_data = {20'h0, addr_reg};
+                  tmp_read_data = {21'h0, addr_reg};
 
                 ADDR_EMEM_DATA:
                   tmp_read_data = spi_read_data_reg;
@@ -320,11 +328,41 @@ module mkmif(
 
 
   //----------------------------------------------------------------
+  // spi_sclk_gen
+  //
+  // Generator of the spi_sclk clock.
+  //----------------------------------------------------------------
+  always @*
+    begin : siphash_sclk_gen
+      spi_sclk_ctr_new = 16'h00;
+      spi_sclk_ctr_we  = 0;
+      spi_sclk_we      = 0;
+      spi_sclk_new     = ~spi_sclk_reg;
+
+      if (spi_sclk_en)
+        begin
+          if (spi_sclk_ctr_reg == spi_sclk_div_reg)
+            begin
+              spi_sclk_ctr_new = 16'h00;
+              spi_sclk_we      = 1;
+            end
+          else
+            spi_sclk_ctr_new = spi_sclk_ctr_new + 1;
+        end
+    end // siphash_sclk_gen
+
+
+  //----------------------------------------------------------------
   // mkmif_ctrl
   // Main control FSM.
   //----------------------------------------------------------------
   always @*
     begin : mkmif_ctrl
+      ready_new      = 0;
+      ready_we       = 0;
+      valid_new      = 0;
+      valid_we       = 0;
+      spi_sclk_en    = 0;
       mkmif_ctrl_new = CTRL_IDLE;
       mkmif_ctrl_we  = 0;
 

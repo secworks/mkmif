@@ -73,7 +73,7 @@ module mkmif(
   localparam ADDR_STATUS      = 8'h09;
   localparam STATUS_READY_BIT = 0;
   localparam STATUS_VALID_BIT = 0;
-  localparam ADDR_SCLK_RATE   = 8'h0a;
+  localparam ADDR_SCLK_DIV    = 8'h0a;
   localparam ADDR_EMEM_ADDR   = 8'h10;
   localparam ADDR_EMEM_DATA   = 8'h20;
 

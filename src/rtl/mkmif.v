@@ -128,9 +128,17 @@ module mkmif(
   reg          spi_do_reg;
   reg          spi_do_we;
 
-  reg          spi_di_reg;
-  reg          spi_di_new;
-  reg          spi_di_we;
+  reg  [7 : 0] spi_di_data_reg;
+  reg  [7 : 0] spi_di_data_new;
+  reg          spi_di_data_we;
+  reg          spi_di_data_set;
+  reg          spi_di_data_nxt;
+  reg          spi_di_data_done;
+  reg  [7 : 0] spi_di_data;
+
+  reg  [2 : 0] spi_di_ctr_reg;
+  reg  [2 : 0] spi_di_ctr_new;
+  reg  [2 : 0] spi_di_ctr_we;
 
   reg [15 : 0] spi_sclk_div_reg;
   reg          spi_sclk_div_we;
@@ -187,7 +195,7 @@ module mkmif(
   assign read_data = tmp_read_data;
   assign spi_sclk  = spi_sclk_reg;
   assign spi_cs_n  = spi_cs_n_reg;
-  assign spi_di    = spi_di_reg;
+  assign spi_di    = spi_di_data_reg[7];
 
 
   //----------------------------------------------------------------
@@ -248,9 +256,6 @@ module mkmif(
           if (spi_cs_n_we)
             spi_cs_n_reg <= spi_cs_n_new;
 
-          if (spi_do_we)
-            spi_do_reg <= spi_do_sample1_reg;
-
           if (spi_sclk_we)
             spi_sclk_reg <= spi_sclk_new;
 
@@ -259,6 +264,15 @@ module mkmif(
 
           if (spi_sclk_div_we)
             spi_sclk_div_reg <= write_data[15 : 0];
+
+          if (spi_di_data_we)
+            spi_di_data_reg <= spi_di_data_new;
+
+          if (spi_di_ctr_we)
+            spi_di_ctr_reg <= spi_di_ctr_new;
+
+          if (spi_do_we)
+            spi_do_reg <= spi_do_sample1_reg;
 
           if (spi_read_data_we)
             spi_read_data_reg <= spi_read_data_new;
@@ -278,6 +292,7 @@ module mkmif(
   //----------------------------------------------------------------
   always @*
     begin : api
+      spi_read_data_rst  = 0;
       spi_write_data_set = 0;
       spi_sclk_div_we    = 0;
       read_op_new        = 0;
@@ -332,7 +347,10 @@ module mkmif(
                   tmp_read_data = {21'h0, addr_reg};
 
                 ADDR_EMEM_DATA:
-                  tmp_read_data = spi_read_data_reg;
+                  begin
+                    tmp_read_data = spi_read_data_reg;
+                    spi_read_data_rst = 1;
+                  end
 
                 default:
                   begin
@@ -342,6 +360,43 @@ module mkmif(
         end
     end // api
 
+  //----------------------------------------------------------------
+  // spi_di_gen
+  //
+  // Generate the bitstream to be written as data into the
+  // external SPI connected memory. The generator also counts
+  // bits shifted out and signals when 8 bits has been
+  // shifted.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_di_gen
+      spi_di_data_new  = 8'h00;
+      spi_di_data_we   = 0;
+      spi_di_data_done = 0;
+      spi_di_ctr_new   = 3'h0;
+      spi_di_ctr_we    = 0;
+
+      if (spi_di_ctr_reg == 3'h7)
+        spi_di_data_done = 1;
+
+      if (spi_di_data_set)
+        begin
+          spi_di_data_new = spi_di_data;
+          spi_di_data_we  = 1;
+          spi_di_ctr_new  = 3'h0;
+          spi_di_ctr_we   = 1;
+        end
+
+      if (spi_di_data_nxt)
+        begin
+          spi_di_data_new = {spi_di_data_reg[6 : 0], 1'b0};
+          spi_di_data_we  = 1;
+
+          spi_di_ctr_new  = spi_di_ctr_reg + 1'b1;
+          spi_di_ctr_we   = 1;
+        end
+
+    end // spi_di_gen
 
   //----------------------------------------------------------------
   // spi_write_data_gen
@@ -356,12 +411,6 @@ module mkmif(
       if (spi_write_data_set)
         begin
           spi_write_data_new = write_data;
-          spi_write_data_we  = 1;
-        end
-
-      if (spi_write_data_nxt)
-        begin
-          spi_write_data_new = {1'b0, spi_write_data_reg[31 : 1]};
           spi_write_data_we  = 1;
         end
 
@@ -433,11 +482,12 @@ module mkmif(
       valid_new          = 0;
       valid_we           = 0;
       spi_sclk_en        = 0;
+      spi_di_data_set    = 0;
+      spi_di_data_nxt    = 0;
+      spi_di_data        = 8'h00;
       spi_do_we          = 0;
       spi_cs_n_new       = 0;
       spi_cs_n_we        = 0;
-      spi_write_data_set = 0;
-      spi_write_data_nxt = 0;
       spi_write_data_rst = 0;
       mkmif_ctrl_new     = CTRL_IDLE;
       mkmif_ctrl_we      = 0;

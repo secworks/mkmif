@@ -102,63 +102,57 @@ module mkmif(
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
-  reg read_op_reg;
-  reg read_op_new;
-  reg write_op_reg;
-  reg write_op_new;
+  reg          read_op_reg;
+  reg          read_op_new;
+  reg          write_op_reg;
+  reg          write_op_new;
 
-  reg ready_reg;
-  reg ready_new;
-  reg ready_we;
+  reg          ready_reg;
+  reg          ready_new;
+  reg          ready_we;
 
-  reg valid_reg;
-  reg valid_new;
-  reg valid_we;
+  reg          valid_reg;
+  reg          valid_new;
+  reg          valid_we;
 
-  reg spi_cs_n_reg;
-  reg spi_cs_n_new;
-  reg spi_cs_n_we;
+  reg          spi_cs_n_reg;
+  reg          spi_cs_n_new;
+  reg          spi_cs_n_we;
 
-  reg spi_sclk_reg;
-  reg spi_sclk_new;
-  reg spi_sclk_we;
-  reg spi_sclk_en;
-  reg spi_do_sample0_reg;
-  reg spi_do_sample1_reg;
-  reg spi_do_reg;
-  reg spi_do_we;
+  reg          spi_sclk_reg;
+  reg          spi_sclk_new;
+  reg          spi_sclk_we;
+  reg          spi_sclk_en;
+  reg          spi_do_sample0_reg;
+  reg          spi_do_sample1_reg;
+  reg          spi_do_reg;
+  reg          spi_do_we;
 
-  reg spi_di_reg;
-  reg spi_di_new;
-  reg spi_di_we;
+  reg          spi_di_reg;
+  reg          spi_di_new;
+  reg          spi_di_we;
 
   reg [15 : 0] spi_sclk_div_reg;
   reg          spi_sclk_div_we;
 
   reg [15 : 0] spi_sclk_ctr_reg;
   reg [15 : 0] spi_sclk_ctr_new;
+  reg          spi_sclk_ctr_mid;
   reg          spi_sclk_ctr_inc;
   reg          spi_sclk_ctr_rst;
   reg          spi_sclk_ctr_we;
   reg          spi_sclk_ctr_en;
 
-  reg [15 : 0] spi_sclk_middle_ctr_reg;
-  reg [15 : 0] spi_sclk_middle_ctr_new;
-  reg          spi_sclk_middle_ctr_inc;
-  reg          spi_sclk_middle_ctr_rst;
-  reg          spi_sclk_middle_ctr_we;
-  reg          spi_sclk_middle_ctr_en;
-
-  reg alarm_sample0_reg;
-  reg alarm_sample1_reg;
-  reg alarm_flank0_reg;
-  reg alarm_flank1_reg;
-  reg alarm_reg;
-  reg alarm_new;
-  reg alarm_we;
-  reg alarm_event_reg;
-  reg alarm_event_new;
-  reg alarm_event_we;
+  reg          alarm_sample0_reg;
+  reg          alarm_sample1_reg;
+  reg          alarm_flank0_reg;
+  reg          alarm_flank1_reg;
+  reg          alarm_event_reg;
+  reg          alarm_event_new;
+  reg          alarm_event_we;
+  reg          alarm_reg;
+  reg          alarm_new;
+  reg          alarm_we;
 
   reg [10 : 0] addr_reg;
   reg          addr_we;
@@ -382,7 +376,8 @@ module mkmif(
   //----------------------------------------------------------------
   // spi_sclk_gen
   //
-  // Generator of the spi_sclk clock.
+  // Generator of the spi_sclk clock. The generator includes
+  // a detector for midpoint of a flank.
   //----------------------------------------------------------------
   always @*
     begin : siphash_sclk_gen
@@ -390,6 +385,10 @@ module mkmif(
       spi_sclk_ctr_we  = 0;
       spi_sclk_we      = 0;
       spi_sclk_new     = ~spi_sclk_reg;
+      spi_sclk_ctr_mid = 0;
+
+      if (spi_sclk_ctr_reg == {1'b0, spi_sclk_div_reg[15 : 1]})
+        spi_sclk_ctr_mid = 1;
 
       if (spi_sclk_en)
         begin

@@ -35,7 +35,7 @@
 #
 #=======================================================================
 
-TOP_SRC = ../src/rtl/mkmif.v
+TOP_SRC = ../src/rtl/mkmif.v ../src/rtl/mkmif_core.v ../src/rtl/mkmif_spi.v
 TOP_TB = ../src/tb/tb_mkmif.v
 
 CC = iverilog

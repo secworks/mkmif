@@ -60,37 +60,51 @@ module mkmif_spi(
   //----------------------------------------------------------------
   // Internal constant and parameter definitions.
   //----------------------------------------------------------------
+  localparam CTRL_IDLE = 0;
 
 
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
-  reg sclk_reg;
-  reg sclk_new;
-  reg sclk_we;
+  reg          sclk_reg;
+  reg          sclk_new;
+  reg          sclk_we;
 
-  reg cs_n_reg;
-  reg cs_n_new;
-  reg cs_n_we;
+  reg          cs_n_reg;
+  reg          cs_n_new;
+  reg          cs_n_we;
 
   reg [55 : 0] di_reg;
   reg [55 : 0] di_new;
+  reg          di_set;
+  reg          di_nxt;
   reg          di_we;
 
-  reg do_sample0_reg;
-  reg do_sample1_reg;
+  reg          do_sample0_reg;
+  reg          do_sample1_reg;
 
   reg [31 : 0] rd_data_reg;
   reg          rd_data_we;
 
-  reg ready_reg;
-  reg ready_new;
-  reg ready_we;
+  reg          ready_reg;
+  reg          ready_new;
+  reg          ready_we;
+
+  reg  [5 : 0] bit_ctr_reg;
+  reg  [5 : 0] bit_ctr_new;
+  reg          bit_ctr_rst;
+  reg          bit_ctr_inc;
+  reg          bit_ctr_we;
+
+  reg  [2 : 0] spi_ctrl_reg;
+  reg  [2 : 0] spi_ctrl_new;
+  reg          spi_ctrl_we;
 
 
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
+  reg en_clk_gen;
 
 
   //----------------------------------------------------------------
@@ -113,14 +127,15 @@ module mkmif_spi(
     begin
       if (!reset_n)
         begin
-          sclk_reg       <= 1'b0;
-          cs_n_reg       <= 1'b1;
+          sclk_reg       <= 1'h0;
+          cs_n_reg       <= 1'h1;
           di_reg         <= 56'h0;
-          do_sample0_reg <= 0;
-          do_sample1_reg <= 0;
-          ready_reg      <= 0;
+          do_sample0_reg <= 1'h0;
+          do_sample1_reg <= 1'h0;
+          ready_reg      <= 1'h0;
           rd_data_reg    <= 32'h0;
-
+          bit_ctr_reg    <= 6'h0;
+          spi_ctrl_reg   <= CTRL_IDLE;
         end
       else
         begin
@@ -142,129 +157,43 @@ module mkmif_spi(
           if (rd_data_we)
             rd_data_reg <= {rd_data_reg[30 : 0], do_sample1_reg};
 
+          if (bit_ctr_we)
+            bit_ctr_reg <= bit_ctr_new;
+
+          if (spi_ctrl_we)
+            spi_ctrl_reg <= spi_ctrl_new;
+
         end
     end // reg_update
 
 
   //----------------------------------------------------------------
-  // Dummy logic. Used just to allow us to build the design.
+  // spi_di_gen
+  //
+  // Generate the bitstream to be written as data into the
+  // external SPI connected memory. The generator also counts
+  // bits shifted out and signals when 8 bits has been
+  // shifted.
   //----------------------------------------------------------------
   always @*
-    begin
-      sclk_new   = 0;
-      sclk_we    = 0;
-      cs_n_new   = 1;
-      cs_n_we    = 0;
-      di_new     = 56'h0;
-      di_we      = 0;
-      rd_data_we = 0;
-      ready_new  = 0;
-      ready_we   = 0;
+    begin : di_gen
+      di_new = 56'h0;
+      di_we  = 0;
 
-      if (set)
+      if (di_set)
         begin
-          sclk_new   = 1;
-          sclk_we    = 1;
-          cs_n_new   = 0;
-          cs_n_we    = 1;
-          di_new     = 56'h1;
-          di_we      = 1;
-          rd_data_we = 1;
-          ready_new  = 1;
-          ready_we   = 1;
+          di_new = wr_data;
+          di_we  = 1;
         end
-    end
+
+      if (di_nxt)
+        begin
+          di_new = {di_reg[54 : 0], 1'b0};
+          di_we  = 1;
+        end
+    end // di_gen
 
 
-//
-//
-//
-//  //----------------------------------------------------------------
-//  // spi_di_gen
-//  //
-//  // Generate the bitstream to be written as data into the
-//  // external SPI connected memory. The generator also counts
-//  // bits shifted out and signals when 8 bits has been
-//  // shifted.
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : spi_di_gen
-//      spi_di_data_new    = 8'h00;
-//      spi_di_data_we     = 0;
-//      spi_di_data_done   = 0;
-//      spi_di_bit_ctr_new = 3'h0;
-//      spi_di_bit_ctr_we  = 0;
-//
-//      if (spi_di_bit_ctr_reg == 3'h7)
-//        spi_di_data_done = 1;
-//
-//      if (spi_di_data_set)
-//        begin
-//          spi_di_data_new    = spi_di_data;
-//          spi_di_data_we     = 1;
-//          spi_di_bit_ctr_new = 3'h0;
-//          spi_di_bit_ctr_we  = 1;
-//        end
-//
-//      if (spi_di_data_nxt)
-//        begin
-//          spi_di_data_new = {spi_di_data_reg[6 : 0], 1'b0};
-//          spi_di_data_we  = 1;
-//
-//          spi_di_bit_ctr_new  = spi_di_bit_ctr_reg + 1'b1;
-//          spi_di_bit_ctr_we   = 1;
-//        end
-//
-//    end // spi_di_gen
-//
-//  //----------------------------------------------------------------
-//  // spi_write_data_gen
-//  //
-//  // Generates the data to be written.
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : spi_write_data_gen
-//      spi_write_data_new = 32'h00;
-//      spi_write_data_we  = 0;
-//
-//      if (spi_write_data_set)
-//        begin
-//          spi_write_data_new = write_data;
-//          spi_write_data_we  = 1;
-//        end
-//
-//      if (spi_write_data_rst)
-//        begin
-//          spi_write_data_new = 32'h00;
-//          spi_write_data_we  = 1;
-//        end
-//    end // spi_write_data_gen
-//
-//
-//  //----------------------------------------------------------------
-//  // spi_read_data_gen
-//  //
-//  // Generates the data to be written.
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : spi_read_data_gen
-//      spi_read_data_new = 32'h0;
-//      spi_read_data_we  = 0;
-//
-//      if (spi_read_data_rst)
-//        begin
-//          spi_read_data_new = 32'h0;
-//          spi_read_data_we  = 1;
-//        end
-//
-//      if (spi_read_data_nxt)
-//        begin
-//          spi_read_data_new = {spi_read_data_reg[30 : 0], spi_do_reg};
-//          spi_read_data_we  = 1;
-//        end
-//    end // spi_read_data_gen
-//
-//
 //  //----------------------------------------------------------------
 //  // spi_sclk_gen
 //  //
@@ -295,38 +224,64 @@ module mkmif_spi(
 //    end // siphash_sclk_gen
 //
 //
-//  //----------------------------------------------------------------
-//  // spi_byte_ctr
-//  //
-//  // Byte counter used by the FSM to keep track of the bytes
-//  // being read or written.
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : spi_byte_ctr
-//      spi_byte_ctr_new = 12'h0;
-//      spi_byte_ctr_we  = 1'b0;
-//
-//      if (spi_byte_ctr_rst)
-//        begin
-//          spi_byte_ctr_new = 12'h0;
-//          spi_byte_ctr_we  = 1'b1;
-//        end
-//
-//      if (spi_byte_ctr_inc)
-//        begin
-//          spi_byte_ctr_new = spi_byte_ctr_reg + 1'b1;
-//          spi_byte_ctr_we  = 1'b1;
-//        end
-//    end // spi_byte_ctr
-//
 
-//  //----------------------------------------------------------------
-//  // mkmif_spi_ctrl
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : mkmif_spi_ctrl
-//
-//    end // mkmif_spi_ctrl
+  //----------------------------------------------------------------
+  // bit_ctr
+  //
+  // Bit counter used by the FSM to keep track of the number bits
+  // being read from or written to the memory.
+  //----------------------------------------------------------------
+  always @*
+    begin : bit_ctr
+      bit_ctr_new = 5'h0;
+      bit_ctr_we  = 1'b0;
+
+      if (bit_ctr_rst)
+        begin
+          bit_ctr_new = 5'h0;
+          bit_ctr_we  = 1'b1;
+        end
+
+      if (bit_ctr_inc)
+        begin
+          bit_ctr_new = bit_ctr_reg + 1'b1;
+          bit_ctr_we  = 1'b1;
+        end
+    end // bit_ctr
+
+
+  //----------------------------------------------------------------
+  // spi_ctrl
+  //
+  // Control FSM for the SPI interface.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_ctrl
+      sclk_new     = 0;
+      sclk_we      = 0;
+      cs_n_new     = 1;
+      cs_n_we      = 0;
+      di_set       = 0;
+      di_nxt       = 0;
+      rd_data_we   = 0;
+      ready_new    = 0;
+      ready_we     = 0;
+      en_clk_gen   = 0;
+      bit_ctr_rst  = 0;
+      bit_ctr_inc  = 0;
+      spi_ctrl_new = CTRL_IDLE;
+      spi_ctrl_we  = 0;
+
+      case (spi_ctrl_reg)
+        CTRL_IDLE:
+          begin
+          end
+
+        default:
+          begin
+          end
+      endcase // case (spi_ctrl_reg)
+    end // spi_ctrl
 
 endmodule // mkmif_spi
 

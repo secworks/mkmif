@@ -65,6 +65,27 @@ module mkmif_spi(
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
+  reg sclk_reg;
+  reg sclk_new;
+  reg sclk_we;
+
+  reg cs_n_reg;
+  reg cs_n_new;
+  reg cs_n_we;
+
+  reg [55 : 0] di_reg;
+  reg [55 : 0] di_new;
+  reg          di_we;
+
+  reg do_sample0_reg;
+  reg do_sample1_reg;
+
+  reg [31 : 0] rd_data_reg;
+  reg          rd_data_we;
+
+  reg ready_reg;
+  reg ready_new;
+  reg ready_we;
 
 
   //----------------------------------------------------------------
@@ -75,6 +96,11 @@ module mkmif_spi(
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
+  assign spi_sclk = sclk_reg;
+  assign spi_cs_n = cs_n_reg;
+  assign spi_di   = di_reg[55];
+  assign ready    = ready_reg;
+  assign rd_data  = rd_data_reg;
 
 
   //----------------------------------------------------------------
@@ -87,13 +113,68 @@ module mkmif_spi(
     begin
       if (!reset_n)
         begin
+          sclk_reg       <= 1'b0;
+          cs_n_reg       <= 1'b1;
+          di_reg         <= 56'h0;
+          do_sample0_reg <= 0;
+          do_sample1_reg <= 0;
+          ready_reg      <= 0;
+          rd_data_reg    <= 32'h0;
 
         end
       else
         begin
+          do_sample0_reg <= spi_do;
+          do_sample1_reg <= do_sample0_reg;
+
+          if (sclk_we)
+            sclk_reg <= sclk_new;
+
+          if (cs_n_we)
+            cs_n_reg <= cs_n_new;
+
+          if (di_we)
+            di_reg <= di_new;
+
+          if (ready_we)
+            ready_reg <= ready_new;
+
+          if (rd_data_we)
+            rd_data_reg <= {rd_data_reg[30 : 0], do_sample1_reg};
 
         end
     end // reg_update
+
+
+  //----------------------------------------------------------------
+  // Dummy logic. Used just to allow us to build the design.
+  //----------------------------------------------------------------
+  always @*
+    begin
+      sclk_new   = 0;
+      sclk_we    = 0;
+      cs_n_new   = 1;
+      cs_n_we    = 0;
+      di_new     = 56'h0;
+      di_we      = 0;
+      rd_data_we = 0;
+      ready_new  = 0;
+      ready_we   = 0;
+
+      if (set)
+        begin
+          sclk_new   = 1;
+          sclk_we    = 1;
+          cs_n_new   = 0;
+          cs_n_we    = 1;
+          di_new     = 56'h1;
+          di_we      = 1;
+          rd_data_we = 1;
+          ready_new  = 1;
+          ready_we   = 1;
+        end
+    end
+
 
 //
 //

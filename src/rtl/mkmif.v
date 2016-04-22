@@ -116,6 +116,10 @@ module mkmif(
   //----------------------------------------------------------------
   assign read_data = tmp_read_data;
 
+
+  //----------------------------------------------------------------
+  // core
+  //----------------------------------------------------------------
   mkmif_core core(
                   .clk(clk),
                   .reset_n(reset_n),
@@ -149,7 +153,7 @@ module mkmif(
           read_op_reg    <= 1'h0;
           write_op_reg   <= 1'h0;
           addr_reg       <= 11'h0;
-          sclk_div_reg   <= 16'h0
+          sclk_div_reg   <= 16'h0;
           write_data_reg <= 32'h0;
         end
       else

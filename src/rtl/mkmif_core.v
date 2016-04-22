@@ -105,6 +105,30 @@ module mkmif_core(
 
 
   //----------------------------------------------------------------
+  // spi
+  // The actual spi interfacce
+  //----------------------------------------------------------------
+  mkmif_spi spi(
+                .clk(clk),
+                .reset_n(reset_n),
+
+                .spi_sclk(spi_sclk),
+                .spi_cs_n(spi_cs_n),
+                .spi_do(spi_do),
+                .spi_di(spi_di),
+
+                .enable(),
+                .set(),
+                .start(),
+                .length(),
+                .divisor(sclk_div),
+                .ready(),
+                .wr_data(),
+                .rd_data()
+               );
+
+
+  //----------------------------------------------------------------
   // reg_update
   // Update functionality for all registers in the core.
   // All registers are positive edge triggered with asynchronous

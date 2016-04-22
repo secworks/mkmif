@@ -95,6 +95,148 @@ module mkmif_spi(
     end // reg_update
 
 
+
+  //----------------------------------------------------------------
+  // spi_di_gen
+  //
+  // Generate the bitstream to be written as data into the
+  // external SPI connected memory. The generator also counts
+  // bits shifted out and signals when 8 bits has been
+  // shifted.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_di_gen
+      spi_di_data_new    = 8'h00;
+      spi_di_data_we     = 0;
+      spi_di_data_done   = 0;
+      spi_di_bit_ctr_new = 3'h0;
+      spi_di_bit_ctr_we  = 0;
+
+      if (spi_di_bit_ctr_reg == 3'h7)
+        spi_di_data_done = 1;
+
+      if (spi_di_data_set)
+        begin
+          spi_di_data_new    = spi_di_data;
+          spi_di_data_we     = 1;
+          spi_di_bit_ctr_new = 3'h0;
+          spi_di_bit_ctr_we  = 1;
+        end
+
+      if (spi_di_data_nxt)
+        begin
+          spi_di_data_new = {spi_di_data_reg[6 : 0], 1'b0};
+          spi_di_data_we  = 1;
+
+          spi_di_bit_ctr_new  = spi_di_bit_ctr_reg + 1'b1;
+          spi_di_bit_ctr_we   = 1;
+        end
+
+    end // spi_di_gen
+
+  //----------------------------------------------------------------
+  // spi_write_data_gen
+  //
+  // Generates the data to be written.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_write_data_gen
+      spi_write_data_new = 32'h00;
+      spi_write_data_we  = 0;
+
+      if (spi_write_data_set)
+        begin
+          spi_write_data_new = write_data;
+          spi_write_data_we  = 1;
+        end
+
+      if (spi_write_data_rst)
+        begin
+          spi_write_data_new = 32'h00;
+          spi_write_data_we  = 1;
+        end
+    end // spi_write_data_gen
+
+
+  //----------------------------------------------------------------
+  // spi_read_data_gen
+  //
+  // Generates the data to be written.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_read_data_gen
+      spi_read_data_new = 32'h0;
+      spi_read_data_we  = 0;
+
+      if (spi_read_data_rst)
+        begin
+          spi_read_data_new = 32'h0;
+          spi_read_data_we  = 1;
+        end
+
+      if (spi_read_data_nxt)
+        begin
+          spi_read_data_new = {spi_read_data_reg[30 : 0], spi_do_reg};
+          spi_read_data_we  = 1;
+        end
+    end // spi_read_data_gen
+
+
+  //----------------------------------------------------------------
+  // spi_sclk_gen
+  //
+  // Generator of the spi_sclk clock. The generator includes
+  // a detector for midpoint of a flank.
+  //----------------------------------------------------------------
+  always @*
+    begin : siphash_sclk_gen
+      spi_sclk_ctr_new = 16'h00;
+      spi_sclk_ctr_we  = 0;
+      spi_sclk_we      = 0;
+      spi_sclk_new     = ~spi_sclk_reg;
+      spi_sclk_ctr_mid = 0;
+
+      if (spi_sclk_ctr_reg == {1'b0, spi_sclk_div_reg[15 : 1]})
+        spi_sclk_ctr_mid = 1;
+
+      if (spi_sclk_en)
+        begin
+          if (spi_sclk_ctr_reg == spi_sclk_div_reg)
+            begin
+              spi_sclk_ctr_new = 16'h00;
+              spi_sclk_we      = 1;
+            end
+          else
+            spi_sclk_ctr_new = spi_sclk_ctr_new + 1'b1;
+        end
+    end // siphash_sclk_gen
+
+
+  //----------------------------------------------------------------
+  // spi_byte_ctr
+  //
+  // Byte counter used by the FSM to keep track of the bytes
+  // being read or written.
+  //----------------------------------------------------------------
+  always @*
+    begin : spi_byte_ctr
+      spi_byte_ctr_new = 12'h0;
+      spi_byte_ctr_we  = 1'b0;
+
+      if (spi_byte_ctr_rst)
+        begin
+          spi_byte_ctr_new = 12'h0;
+          spi_byte_ctr_we  = 1'b1;
+        end
+
+      if (spi_byte_ctr_inc)
+        begin
+          spi_byte_ctr_new = spi_byte_ctr_reg + 1'b1;
+          spi_byte_ctr_we  = 1'b1;
+        end
+    end // spi_byte_ctr
+
+
   //----------------------------------------------------------------
   // mkmif_spi_ctrl
   //----------------------------------------------------------------

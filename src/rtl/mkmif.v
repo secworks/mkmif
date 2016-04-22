@@ -105,13 +105,35 @@ module mkmif(
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
-  reg [31 : 0]   tmp_read_data;
+  reg          core_ready;
+  reg          core_valid;
+  reg [31 : 0] core_read_data;
+  reg [31 : 0] tmp_read_data;
 
 
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
   assign read_data = tmp_read_data;
+
+  mkmif_core core(
+                  .clk(clk),
+                  .reset_n(reset_n),
+
+                  .spi_sclk(spi_sclk),
+                  .spi_cs_n(spi_cs_n),
+                  .spi_do(spi_do),
+                  .spi_di(spi_di),
+
+                  .write_op(write_op_reg),
+                  .read_op(read_op_reg),
+                  .ready(core_ready),
+                  .valid(core_valid),
+                  .sclk_div(sclk_div_reg),
+                  .spi_addr(addr_reg),
+                  .spi_write_data(write_data_reg),
+                  .spi_read_data(core_read_data)
+                 );
 
 
   //----------------------------------------------------------------
@@ -195,7 +217,7 @@ module mkmif(
                   tmp_read_data = CORE_VERSION;
 
                 ADDR_STATUS:
-                    tmp_read_data = {30'h0, {valid, ready}};
+                    tmp_read_data = {30'h0, {core_valid, core_ready}};
 
                 ADDR_SCLK_DIV:
                   tmp_read_data = {16'h0, spi_sclk_div_reg};
@@ -205,7 +227,7 @@ module mkmif(
 
                 ADDR_EMEM_DATA:
                   begin
-                    tmp_read_data = spi_read_data;
+                    tmp_read_data = core_read_data;
                   end
 
                 default:

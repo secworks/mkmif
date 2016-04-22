@@ -56,9 +56,9 @@ module mkmif_core(
                   output wire          ready,
                   output wire          valid,
                   input wire [15 : 0]  sclk_div,
-                  input wire [10 : 0]  spi_addr,
-                  input wire [31 : 0]  spi_write_data,
-                  output wire [31 : 0] spi_read_data
+                  input wire [10 : 0]  addr,
+                  input wire [31 : 0]  write_data,
+                  output wire [31 : 0] read_data
                  );
 
 
@@ -82,26 +82,39 @@ module mkmif_core(
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
-  reg         ready_reg;
-  reg         ready_new;
-  reg         ready_we;
-  reg         valid_reg;
-  reg         valid_new;
-  reg         valid_we;
+  reg          ready_reg;
+  reg          ready_new;
+  reg          ready_we;
+  reg          valid_reg;
+  reg          valid_new;
+  reg          valid_we;
 
-  reg [4 : 0] mkmif_ctrl_reg;
-  reg [4 : 0] mkmif_ctrl_new;
-  reg         mkmif_ctrl_we;
+  reg [31 : 0] read_data_reg;
+  reg          read_data_we;
+
+  reg [4 : 0]  mkmif_ctrl_reg;
+  reg [4 : 0]  mkmif_ctrl_new;
+  reg          mkmif_ctrl_we;
 
 
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
+  wire [31 : 0] spi_read_data;
+  reg [31 : 0]  spi_write_data;
+  reg           spi_enable;
+  reg           spi_set;
+  reg           spi_start;
+  wire          spi_ready;
+  reg [12 : 0]  spi_length;
 
 
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
+  assign ready     = ready_reg;
+  assign valid     = valid_reg;
+  assign read_data = read_data_reg;
 
 
   //----------------------------------------------------------------
@@ -117,14 +130,14 @@ module mkmif_core(
                 .spi_do(spi_do),
                 .spi_di(spi_di),
 
-                .enable(),
-                .set(),
-                .start(),
-                .length(),
+                .enable(spi_enable),
+                .set(spi_set),
+                .start(spi_start),
+                .length(spi_length),
                 .divisor(sclk_div),
-                .ready(),
-                .wr_data(),
-                .rd_data()
+                .ready(spi_ready),
+                .wr_data(spi_write_data),
+                .rd_data(spi_read_data)
                );
 
 
@@ -140,6 +153,7 @@ module mkmif_core(
         begin
           ready_reg      <= 0;
           valid_reg      <= 0;
+          read_data_reg  <= 32'h0;
           mkmif_ctrl_reg <= CTRL_IDLE;
         end
       else
@@ -149,6 +163,9 @@ module mkmif_core(
 
           if (valid_we)
             valid_reg <= valid_new;
+
+          if (read_data_we)
+            read_data_reg <= spi_read_data;
 
           if (mkmif_ctrl_we)
             mkmif_ctrl_reg <= mkmif_ctrl_new;

@@ -97,18 +97,18 @@ module mkmif(
   reg [15 : 0] sclk_div_new;
   reg          sclk_div_we;
 
-  reg [31 : 0] spi_write_data_reg;
-  reg [31 : 0] spi_write_data_new;
-  reg          spi_write_data_we;
+  reg [31 : 0] write_data_reg;
+  reg [31 : 0] write_data_new;
+  reg          write_data_we;
 
 
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
-  reg          core_ready;
-  reg          core_valid;
-  reg [31 : 0] core_read_data;
-  reg [31 : 0] tmp_read_data;
+  wire          core_ready;
+  wire          core_valid;
+  wire [31 : 0] core_read_data;
+  reg [31 : 0]  tmp_read_data;
 
 
   //----------------------------------------------------------------
@@ -134,9 +134,9 @@ module mkmif(
                   .ready(core_ready),
                   .valid(core_valid),
                   .sclk_div(sclk_div_reg),
-                  .spi_addr(addr_reg),
-                  .spi_write_data(write_data_reg),
-                  .spi_read_data(core_read_data)
+                  .addr(addr_reg),
+                  .write_data(write_data_reg),
+                  .read_data(core_read_data)
                  );
 
 
@@ -194,7 +194,7 @@ module mkmif(
                   end
 
                 ADDR_SCLK_DIV:
-                  spi_sclk_div_we = 1;
+                  sclk_div_we = 1;
 
                 ADDR_EMEM_ADDR:
                   addr_we = 1;
@@ -224,7 +224,7 @@ module mkmif(
                     tmp_read_data = {30'h0, {core_valid, core_ready}};
 
                 ADDR_SCLK_DIV:
-                  tmp_read_data = {16'h0, spi_sclk_div_reg};
+                  tmp_read_data = {16'h0, sclk_div_reg};
 
                 ADDR_EMEM_ADDR:
                   tmp_read_data = {21'h0, addr_reg};

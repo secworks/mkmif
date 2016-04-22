@@ -73,7 +73,6 @@ module tb_mkmif();
 
   reg           tb_clk;
   reg           tb_reset_n;
-  reg           tb_alarm;
   wire          tb_spi_sclk;
   wire          tb_spi_cs_n;
   reg           tb_spi_do;
@@ -93,8 +92,6 @@ module tb_mkmif();
   mkmif dut(
             .clk(tb_clk),
             .reset_n(tb_reset_n),
-
-            .alarm(tb_alarm),
 
             .spi_sclk(tb_spi_sclk),
             .spi_cs_n(tb_spi_cs_n),
@@ -200,7 +197,6 @@ module tb_mkmif();
       cycle_ctr     = 0;
       tb_clk        = 0;
       tb_reset_n    = 1;
-      tb_alarm      = 0;
       tb_spi_do     = 0;
       tb_cs         = 1'b0;
       tb_we         = 1'b0;

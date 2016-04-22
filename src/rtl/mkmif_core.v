@@ -70,13 +70,22 @@ module mkmif_core(
   localparam SPI_READ_STATUS_CMD  = 8'h05;
   localparam SPI_WRITE_STATUS_CMD = 8'h01;
 
-  localparam STATUS_SEQ_MODE_NO_HOLD = 8'b01000001;
+  localparam SEQ_MODE_NO_HOLD = 8'b01000001;
 
-  localparam CTRL_IDLE      = 0;
-  localparam CTRL_SRAM_INIT = 1;
-  localparam CTRL_READY     = 2;
-  localparam CTRL_READ      = 3;
-  localparam CTRL_WRITE     = 4;
+  localparam CTRL_IDLE           = 0;
+  localparam CTRL_INIT           = 1;
+  localparam CTRL_INIT_START     = 2;
+  localparam CTRL_INIT_WAIT      = 3;
+  localparam CTRL_READY          = 4;
+  localparam CTRL_READ           = 5;
+  localparam CTRL_READ_CMD_START = 6;
+  localparam CTRL_READ_CMD_WAIT  = 7;
+  localparam CTRL_READ_RD        = 8;
+  localparam CTRL_READ_RD_START  = 9;
+  localparam CTRL_READ_RD_WAIT   = 10;
+  localparam CTRL_WRITE          = 11;
+  localparam CTRL_WRITE_START    = 12;
+  localparam CTRL_WRITE_WAIT     = 13;
 
 
   //----------------------------------------------------------------
@@ -92,8 +101,8 @@ module mkmif_core(
   reg [31 : 0] read_data_reg;
   reg          read_data_we;
 
-  reg [4 : 0]  mkmif_ctrl_reg;
-  reg [4 : 0]  mkmif_ctrl_new;
+  reg [3 : 0]  mkmif_ctrl_reg;
+  reg [3 : 0]  mkmif_ctrl_new;
   reg          mkmif_ctrl_we;
 
 
@@ -101,12 +110,13 @@ module mkmif_core(
   // Wires.
   //----------------------------------------------------------------
   wire [31 : 0] spi_read_data;
-  reg [31 : 0]  spi_write_data;
+  reg  [55 : 0] spi_write_data;
   reg           spi_enable;
   reg           spi_set;
   reg           spi_start;
+  reg           spi_write;
   wire          spi_ready;
-  reg [12 : 0]  spi_length;
+  reg   [2 : 0] spi_length;
 
 
   //----------------------------------------------------------------
@@ -135,6 +145,7 @@ module mkmif_core(
                 .start(spi_start),
                 .length(spi_length),
                 .divisor(sclk_div),
+                .write(spi_wr),
                 .ready(spi_ready),
                 .wr_data(spi_write_data),
                 .rd_data(spi_read_data)
@@ -179,16 +190,177 @@ module mkmif_core(
   //----------------------------------------------------------------
   always @*
     begin : mkmif_ctrl
-      ready_new          = 0;
-      ready_we           = 0;
-      valid_new          = 0;
-      valid_we           = 0;
-      mkmif_ctrl_new     = CTRL_IDLE;
-      mkmif_ctrl_we      = 0;
+      spi_enable     = 0;
+      spi_set        = 0;
+      spi_start      = 0;
+      spi_write      = 0;
+      spi_length     = 3'h0;
+      spi_write_data = 55'h0;
+      ready_new      = 0;
+      ready_we       = 0;
+      valid_new      = 0;
+      valid_we       = 0;
+      mkmif_ctrl_new = CTRL_IDLE;
+      mkmif_ctrl_we  = 0;
 
       case (mkmif_ctrl_reg)
+        // After reset we initiate the SRAM by setting it in
+        // sequential mode with no support for hold flag.
         CTRL_IDLE:
           begin
+            mkmif_ctrl_new = CTRL_INIT;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_INIT:
+          begin
+            spi_enable     = 1;
+            spi_set        = 1;
+            spi_write      = 1;
+            spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
+            spi_length     = 3'h2;
+            mkmif_ctrl_new = CTRL_INIT_START;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_INIT_START:
+          begin
+            spi_enable = 1;
+            spi_start  = 1;
+            mkmif_ctrl_new = CTRL_INIT_WAIT;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_INIT_WAIT:
+          begin
+            spi_enable = 1;
+            if (spi_ready)
+              begin
+                mkmif_ctrl_new = CTRL_READY;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+
+        // Main command handler state.
+        // Waits here for read or write commands.
+        CTRL_READY:
+          begin
+            ready_new = 1;
+            ready_we  = 1;
+
+            if (read_op)
+              begin
+                ready_new      = 0;
+                ready_we       = 1;
+                valid_new      = 0;
+                valid_we       = 1;
+                mkmif_ctrl_new = CTRL_READ;
+                mkmif_ctrl_we  = 1;
+              end
+
+            if (write_op)
+              begin
+                ready_new      = 0;
+                ready_we       = 1;
+                mkmif_ctrl_new = CTRL_WRITE;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+
+        // Read sequence. Starts by first writing command
+        // and start address. When write is completed
+        // we read out four data bytes.
+        CTRL_READ:
+          begin
+            spi_enable     = 1;
+            spi_set        = 1;
+            spi_write      = 1;
+            spi_write_data = {SPI_READ_DATA_CMD, addr, 32'h0};
+            spi_length     = 3'h3;
+            mkmif_ctrl_new = CTRL_READ_CMD_START;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_READ_CMD_START:
+          begin
+            spi_enable = 1;
+            spi_start  = 1;
+            mkmif_ctrl_new = CTRL_READ_CMD_WAIT;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_READ_CMD_WAIT:
+          begin
+            spi_enable = 1;
+            if (spi_ready)
+              begin
+                mkmif_ctrl_new = CTRL_READ_RD;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_READ_RD:
+          begin
+            spi_enable     = 1;
+            spi_set        = 1;
+            spi_length     = 3'h4;
+            mkmif_ctrl_new = CTRL_READ_RD_START;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_READ_RD_START:
+          begin
+            spi_enable = 1;
+            spi_start  = 1;
+            mkmif_ctrl_new = CTRL_READ_RD_WAIT;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_READ_RD_WAIT:
+          begin
+            spi_enable = 1;
+            if (spi_ready)
+              begin
+                read_data_we   = 1;
+                valid_new      = 1;
+                valid_we       = 1;
+                mkmif_ctrl_new = CTRL_READY;
+                mkmif_ctrl_we  = 1;
+              end
+          end
+
+
+        // Write sequence. We basicallt write seven bytes
+        // (command, address and data) to the memory.
+        CTRL_WRITE:
+          begin
+            spi_enable     = 1;
+            spi_set        = 1;
+            spi_write      = 1;
+            spi_write_data = {SPI_WRITE_DATA_CMD, addr, write_data};
+            spi_length     = 3'h7;
+            mkmif_ctrl_new = CTRL_WRITE_START;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_START:
+          begin
+            spi_enable = 1;
+            spi_start  = 1;
+            mkmif_ctrl_new = CTRL_WRITE_WAIT;
+            mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_WRITE_WAIT:
+          begin
+            spi_enable = 1;
+            if (spi_ready)
+              begin
+                mkmif_ctrl_new = CTRL_READY;
+                mkmif_ctrl_we  = 1;
+              end
           end
 
         default:

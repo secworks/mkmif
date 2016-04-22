@@ -90,15 +90,13 @@ module mkmif(
   reg          write_op_reg;
   reg          write_op_new;
 
-  reg [10 : 0] addr_reg;
+  reg [15 : 0] addr_reg;
   reg          addr_we;
 
   reg [15 : 0] sclk_div_reg;
-  reg [15 : 0] sclk_div_new;
   reg          sclk_div_we;
 
   reg [31 : 0] write_data_reg;
-  reg [31 : 0] write_data_new;
   reg          write_data_we;
 
 
@@ -152,7 +150,7 @@ module mkmif(
         begin
           read_op_reg    <= 1'h0;
           write_op_reg   <= 1'h0;
-          addr_reg       <= 11'h0;
+          addr_reg       <= 16'h0;
           sclk_div_reg   <= 16'h0;
           write_data_reg <= 32'h0;
         end
@@ -163,6 +161,9 @@ module mkmif(
 
           if (sclk_div_we)
             sclk_div_reg <= write_data[15 : 0];
+
+          if (addr_we)
+            addr_reg <= write_data[15 : 0];
 
           if (write_data_we)
             write_data_reg <= write_data;
@@ -227,7 +228,7 @@ module mkmif(
                   tmp_read_data = {16'h0, sclk_div_reg};
 
                 ADDR_EMEM_ADDR:
-                  tmp_read_data = {21'h0, addr_reg};
+                  tmp_read_data = {16'h0, addr_reg};
 
                 ADDR_EMEM_DATA:
                   begin

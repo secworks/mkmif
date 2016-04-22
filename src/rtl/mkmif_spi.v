@@ -48,10 +48,11 @@ module mkmif_spi(
                  input wire           enable,
                  input wire           set,
                  input wire           start,
-                 input wire [12 : 0]  length,
+                 input wire           write,
+                 input wire [2 : 0]   length,
                  input wire [15 : 0]  divisor,
                  output wire          ready,
-                 input wire [31 : 0]  wr_data,
+                 input wire [55 : 0]  wr_data,
                  output wire [31 : 0] rd_data
                 );
 

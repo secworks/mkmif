@@ -56,7 +56,7 @@ module mkmif_core(
                   output wire          ready,
                   output wire          valid,
                   input wire [15 : 0]  sclk_div,
-                  input wire [10 : 0]  addr,
+                  input wire [15 : 0]  addr,
                   input wire [31 : 0]  write_data,
                   output wire [31 : 0] read_data
                  );
@@ -145,7 +145,7 @@ module mkmif_core(
                 .start(spi_start),
                 .length(spi_length),
                 .divisor(sclk_div),
-                .write(spi_wr),
+                .write(spi_write),
                 .ready(spi_ready),
                 .wr_data(spi_write_data),
                 .rd_data(spi_read_data)
@@ -195,7 +195,7 @@ module mkmif_core(
       spi_start      = 0;
       spi_write      = 0;
       spi_length     = 3'h0;
-      spi_write_data = 55'h0;
+      spi_write_data = 56'h0;
       ready_new      = 0;
       ready_we       = 0;
       valid_new      = 0;

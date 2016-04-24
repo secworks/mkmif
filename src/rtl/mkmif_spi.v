@@ -2,7 +2,13 @@
 //
 // mkmif_spi.v
 // -----------
-// SPI interface for the master key memory.
+// SPI interface for the master key memory. When enabled the
+// interface waits for command to transmit and receive a given
+// number of bytes. Data is transmitted onto the spi_di port
+// from the MSB of the spi_data register. Simultaneously,
+// data captured on the spi_do port is inserted at LSB in the
+// spi_data register. The spi clock is generated when data is to be
+// sent or recived.
 //
 //
 // Author: Joachim Strombergson
@@ -45,10 +51,8 @@ module mkmif_spi(
                  input wire           spi_do,
                  output wire          spi_di,
 
-                 input wire           enable,
                  input wire           set,
                  input wire           start,
-                 input wire           write,
                  input wire [2 : 0]   length,
                  input wire [15 : 0]  divisor,
                  output wire          ready,
@@ -74,17 +78,14 @@ module mkmif_spi(
   reg          cs_n_new;
   reg          cs_n_we;
 
-  reg [55 : 0] di_reg;
-  reg [55 : 0] di_new;
-  reg          di_set;
-  reg          di_nxt;
-  reg          di_we;
-
   reg          do_sample0_reg;
   reg          do_sample1_reg;
 
-  reg [31 : 0] rd_data_reg;
-  reg          rd_data_we;
+  reg [55 : 0] data_reg;
+  reg [55 : 0] data_new;
+  reg          data_set;
+  reg          data_nxt;
+  reg          data_we;
 
   reg          ready_reg;
   reg          ready_new;
@@ -112,9 +113,9 @@ module mkmif_spi(
   //----------------------------------------------------------------
   assign spi_sclk = sclk_reg;
   assign spi_cs_n = cs_n_reg;
-  assign spi_di   = di_reg[55];
+  assign spi_di   = data_reg[55];
+  assign rd_data  = data_reg[31 : 0];
   assign ready    = ready_reg;
-  assign rd_data  = rd_data_reg;
 
 
   //----------------------------------------------------------------
@@ -129,11 +130,10 @@ module mkmif_spi(
         begin
           sclk_reg       <= 1'h0;
           cs_n_reg       <= 1'h1;
-          di_reg         <= 56'h0;
           do_sample0_reg <= 1'h0;
           do_sample1_reg <= 1'h0;
+          data_reg       <= 56'h0;
           ready_reg      <= 1'h0;
-          rd_data_reg    <= 32'h0;
           bit_ctr_reg    <= 6'h0;
           spi_ctrl_reg   <= CTRL_IDLE;
         end
@@ -148,14 +148,11 @@ module mkmif_spi(
           if (cs_n_we)
             cs_n_reg <= cs_n_new;
 
-          if (di_we)
-            di_reg <= di_new;
-
           if (ready_we)
             ready_reg <= ready_new;
 
-          if (rd_data_we)
-            rd_data_reg <= {rd_data_reg[30 : 0], do_sample1_reg};
+          if (data_we)
+            data_reg <= data_new;
 
           if (bit_ctr_we)
             bit_ctr_reg <= bit_ctr_new;
@@ -168,30 +165,30 @@ module mkmif_spi(
 
 
   //----------------------------------------------------------------
-  // spi_di_gen
+  // data_gen
   //
-  // Generate the bitstream to be written as data into the
-  // external SPI connected memory. The generator also counts
-  // bits shifted out and signals when 8 bits has been
-  // shifted.
+  // Generate the data bitstream to be written out to the external
+  // SPI connected memory. Basically a shift register.
+  // Note that we also shift in data received from the external
+  // memory.
   //----------------------------------------------------------------
   always @*
-    begin : di_gen
-      di_new = 56'h0;
-      di_we  = 0;
+    begin : data_gen
+      data_new = 56'h0;
+      data_we  = 0;
 
-      if (di_set)
+      if (data_set)
         begin
-          di_new = wr_data;
-          di_we  = 1;
+          data_new = wr_data;
+          data_we  = 1;
         end
 
-      if (di_nxt)
+      if (data_nxt)
         begin
-          di_new = {di_reg[54 : 0], 1'b0};
-          di_we  = 1;
+          data_new = {data_reg[54 : 0], do_sample1_reg};
+          data_we  = 1;
         end
-    end // di_gen
+    end // data_gen
 
 
 //  //----------------------------------------------------------------
@@ -261,9 +258,8 @@ module mkmif_spi(
       sclk_we      = 0;
       cs_n_new     = 1;
       cs_n_we      = 0;
-      di_set       = 0;
-      di_nxt       = 0;
-      rd_data_we   = 0;
+      data_set     = 0;
+      data_nxt     = 0;
       ready_new    = 0;
       ready_we     = 0;
       en_clk_gen   = 0;

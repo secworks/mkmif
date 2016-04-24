@@ -140,12 +140,10 @@ module mkmif_core(
                 .spi_do(spi_do),
                 .spi_di(spi_di),
 
-                .enable(spi_enable),
                 .set(spi_set),
                 .start(spi_start),
                 .length(spi_length),
                 .divisor(sclk_div),
-                .write(spi_write),
                 .ready(spi_ready),
                 .wr_data(spi_write_data),
                 .rd_data(spi_read_data)

@@ -322,6 +322,7 @@ module mkmif_spi(
 
         CTRL_WAIT:
           begin
+            sclk_en = 1;
             if (bit_ctr_done)
               begin
                 spi_ctrl_new = CTRL_DONE;

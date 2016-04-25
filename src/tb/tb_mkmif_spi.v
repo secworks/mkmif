@@ -71,7 +71,6 @@ module tb_mkmif_spi();
   wire          tb_ready;
   reg [55 : 0]  tb_write_data;
   wire [31 : 0] tb_read_data;
-  reg           tb_do_reg;
   reg           tb_dump_state;
 
 
@@ -84,7 +83,7 @@ module tb_mkmif_spi();
 
                 .spi_sclk(tb_spi_sclk),
                 .spi_cs_n(tb_spi_cs_n),
-                .spi_do(tb_do_reg),
+                .spi_do(tb_spi_di),
                 .spi_di(tb_spi_di),
 
                 .set(tb_set),
@@ -107,16 +106,6 @@ module tb_mkmif_spi();
     end // clk_gen
 
 
-  //----------------------------------------------------------------
-  // Register update used to drive the register that sends data
-  // written by the dut back to the dut itself.
-  //----------------------------------------------------------------
-  always @ (posedge tb_spi_sclk)
-    begin
-      tb_do_reg <= tb_spi_di;
-    end
-
-
   //--------------------------------------------------------------------
   // dut_monitor
   // Monitor for observing the inputs and outputs to the dut.
@@ -125,9 +114,6 @@ module tb_mkmif_spi();
   always @ (posedge tb_clk)
     begin : dut_monitor
       cycle_ctr = cycle_ctr + 1;
-
-      if (tb_dump_state)
-        dump_state();
     end // dut_monitor
 
 
@@ -172,13 +158,34 @@ module tb_mkmif_spi();
       $display("data_reg: 0x%014x", dut.data_reg);
       $display("clk_ctr:   0x%08x", dut.clk_ctr_reg);
       $display("bit_ctr:   0x%02x", dut.bit_ctr_reg);
-      $display("ctrl:      0x%02x", dut.spi_ctrl_reg);
+      $display("ctrl:      0x%02x, done: 0x%01x, ready: 0x%01x",
+               dut.spi_ctrl_reg, dut.bit_ctr_done, tb_ready);
       $display("Output:");
       $display("en: 0x%01x, sclk: 0x%01x, di: 0x%01x, do: 0x%01x",
-               tb_spi_cs_n, tb_spi_sclk, tb_spi_di, tb_do_reg);
+               tb_spi_cs_n, tb_spi_sclk, tb_spi_di, tb_spi_di);
+      $display("read data: 0x%08x", tb_read_data);
       $display("");
     end
   endtask // dump_state
+
+
+  //----------------------------------------------------------------
+  // wait_ready()
+  //
+  // Wait for ready word to be set in the DUT API.
+  //----------------------------------------------------------------
+  task wait_ready;
+    reg ready;
+    begin
+      ready = 0;
+
+      while (tb_ready == 0)
+        begin
+          #(CLK_PERIOD);
+          dump_state();
+        end
+    end
+  endtask // read_word
 
 
   //----------------------------------------------------------------
@@ -242,11 +249,11 @@ module tb_mkmif_spi();
       tb_divisor    = 16'h8;
       tb_length     = 3'h4;
       tb_start      = 1;
-      tb_dump_state = 1;
       #(2 * CLK_PERIOD);
-      tb_start = 0;
-      #(100 * CLK_PERIOD);
-      tb_dump_state = 0;
+      tb_start      = 0;
+
+      wait_ready();
+
       $display("  -- Transmit data test done..");
     end
   endtask // transmit_data

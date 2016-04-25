@@ -64,22 +64,25 @@ module mkmif_spi(
   //----------------------------------------------------------------
   // Internal constant and parameter definitions.
   //----------------------------------------------------------------
-  localparam CTRL_IDLE = 0;
+  localparam CTRL_IDLE  = 2'h0;
+  localparam CTRL_START = 2'h1;
+  localparam CTRL_WAIT  = 2'h2;
+  localparam CTRL_DONE  = 2'h3;
 
 
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
   //----------------------------------------------------------------
-  reg          sclk_reg;
-  reg          sclk_new;
-  reg          sclk_we;
+  reg          do_sample0_reg;
+  reg          do_sample1_reg;
 
   reg          cs_n_reg;
   reg          cs_n_new;
   reg          cs_n_we;
 
-  reg          do_sample0_reg;
-  reg          do_sample1_reg;
+  reg          ready_reg;
+  reg          ready_new;
+  reg          ready_we;
 
   reg [55 : 0] data_reg;
   reg [55 : 0] data_new;
@@ -87,25 +90,31 @@ module mkmif_spi(
   reg          data_nxt;
   reg          data_we;
 
-  reg          ready_reg;
-  reg          ready_new;
-  reg          ready_we;
+  reg          sclk_reg;
+  reg          sclk_new;
+  reg          sclk_rst;
+  reg          sclk_en;
+  reg          sclk_we;
+
+  reg [15 : 0] clk_ctr_reg;
+  reg [15 : 0] clk_ctr_new;
+  reg          clk_ctr_we;
 
   reg  [5 : 0] bit_ctr_reg;
   reg  [5 : 0] bit_ctr_new;
   reg          bit_ctr_rst;
   reg          bit_ctr_inc;
+  reg          bit_ctr_done;
   reg          bit_ctr_we;
 
-  reg  [2 : 0] spi_ctrl_reg;
-  reg  [2 : 0] spi_ctrl_new;
+  reg  [1 : 0] spi_ctrl_reg;
+  reg  [1 : 0] spi_ctrl_new;
   reg          spi_ctrl_we;
 
 
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
-  reg en_clk_gen;
 
 
   //----------------------------------------------------------------
@@ -128,12 +137,13 @@ module mkmif_spi(
     begin
       if (!reset_n)
         begin
-          sclk_reg       <= 1'h0;
-          cs_n_reg       <= 1'h1;
           do_sample0_reg <= 1'h0;
           do_sample1_reg <= 1'h0;
-          data_reg       <= 56'h0;
+          cs_n_reg       <= 1'h1;
           ready_reg      <= 1'h0;
+          data_reg       <= 56'h0;
+          sclk_reg       <= 1'h0;
+          clk_ctr_reg    <= 16'h0;
           bit_ctr_reg    <= 6'h0;
           spi_ctrl_reg   <= CTRL_IDLE;
         end
@@ -141,9 +151,6 @@ module mkmif_spi(
         begin
           do_sample0_reg <= spi_do;
           do_sample1_reg <= do_sample0_reg;
-
-          if (sclk_we)
-            sclk_reg <= sclk_new;
 
           if (cs_n_we)
             cs_n_reg <= cs_n_new;
@@ -153,6 +160,12 @@ module mkmif_spi(
 
           if (data_we)
             data_reg <= data_new;
+
+          if (sclk_we)
+            sclk_reg <= sclk_new;
+
+          if (clk_ctr_we)
+            clk_ctr_reg <= clk_ctr_new;
 
           if (bit_ctr_we)
             bit_ctr_reg <= bit_ctr_new;
@@ -191,36 +204,51 @@ module mkmif_spi(
     end // data_gen
 
 
-//  //----------------------------------------------------------------
-//  // spi_sclk_gen
-//  //
-//  // Generator of the spi_sclk clock. The generator includes
-//  // a detector for midpoint of a flank.
-//  //----------------------------------------------------------------
-//  always @*
-//    begin : siphash_sclk_gen
-//      spi_sclk_ctr_new = 16'h00;
-//      spi_sclk_ctr_we  = 0;
-//      spi_sclk_we      = 0;
-//      spi_sclk_new     = ~spi_sclk_reg;
-//      spi_sclk_ctr_mid = 0;
-//
-//      if (spi_sclk_ctr_reg == {1'b0, spi_sclk_div_reg[15 : 1]})
-//        spi_sclk_ctr_mid = 1;
-//
-//      if (spi_sclk_en)
-//        begin
-//          if (spi_sclk_ctr_reg == spi_sclk_div_reg)
-//            begin
-//              spi_sclk_ctr_new = 16'h00;
-//              spi_sclk_we      = 1;
-//            end
-//          else
-//            spi_sclk_ctr_new = spi_sclk_ctr_new + 1'b1;
-//        end
-//    end // siphash_sclk_gen
-//
-//
+  //----------------------------------------------------------------
+  // sclk_gen
+  //
+  // Generator of the spi_sclk clock.
+  //----------------------------------------------------------------
+  always @*
+    begin : sclk_gen
+      sclk_new     = 0;
+      sclk_we      = 0;
+      clk_ctr_new  = 0;
+      clk_ctr_we   = 0;
+      data_nxt     = 0;
+      bit_ctr_rst  = 0;
+      bit_ctr_inc  = 0;
+
+      if (sclk_rst)
+        begin
+          bit_ctr_rst = 1;
+          sclk_new    = 0;
+          sclk_we     = 1;
+        end
+
+      if (sclk_en)
+        begin
+          if (clk_ctr_reg == divisor)
+            begin
+              clk_ctr_new = 0;
+              clk_ctr_we  = 1'b1;
+              sclk_new    = ~sclk_reg;
+              sclk_we     = 1;
+
+              if (!sclk_reg)
+                begin
+                  bit_ctr_inc = 1;
+                  data_nxt    = 1;
+                end
+            end
+          else
+            begin
+              clk_ctr_new = clk_ctr_reg;
+              clk_ctr_we  = 1'b1;
+            end
+        end
+    end // sclk_gen
+
 
   //----------------------------------------------------------------
   // bit_ctr
@@ -230,12 +258,16 @@ module mkmif_spi(
   //----------------------------------------------------------------
   always @*
     begin : bit_ctr
-      bit_ctr_new = 5'h0;
-      bit_ctr_we  = 1'b0;
+      bit_ctr_new  = 6'h0;
+      bit_ctr_we   = 1'b0;
+      bit_ctr_done = 1'b0;
+
+      if (bit_ctr_reg == {length, 3'h0})
+        bit_ctr_done = 1'b1;
 
       if (bit_ctr_rst)
         begin
-          bit_ctr_new = 5'h0;
+          bit_ctr_new = 6'h0;
           bit_ctr_we  = 1'b1;
         end
 
@@ -254,23 +286,57 @@ module mkmif_spi(
   //----------------------------------------------------------------
   always @*
     begin : spi_ctrl
-      sclk_new     = 0;
-      sclk_we      = 0;
+      sclk_en      = 0;
+      sclk_rst     = 0;
       cs_n_new     = 1;
       cs_n_we      = 0;
       data_set     = 0;
-      data_nxt     = 0;
       ready_new    = 0;
       ready_we     = 0;
-      en_clk_gen   = 0;
-      bit_ctr_rst  = 0;
-      bit_ctr_inc  = 0;
       spi_ctrl_new = CTRL_IDLE;
       spi_ctrl_we  = 0;
 
       case (spi_ctrl_reg)
         CTRL_IDLE:
           begin
+            if (set)
+              data_set = 1;
+
+            if (start)
+              begin
+                ready_new    = 0;
+                ready_we     = 1;
+                spi_ctrl_new = CTRL_START;
+                spi_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_START:
+          begin
+            sclk_rst    = 0;
+            cs_n_new    = 0;
+            cs_n_we     = 1;
+            spi_ctrl_new = CTRL_WAIT;
+            spi_ctrl_we  = 1;
+          end
+
+        CTRL_WAIT:
+          begin
+            if (bit_ctr_done)
+              begin
+                spi_ctrl_new = CTRL_DONE;
+                spi_ctrl_we  = 1;
+              end
+          end
+
+        CTRL_DONE:
+          begin
+            ready_new    = 1;
+            ready_we     = 1;
+            cs_n_new     = 1;
+            cs_n_we      = 1;
+            spi_ctrl_new = CTRL_IDLE;
+            spi_ctrl_we  = 1;
           end
 
         default:

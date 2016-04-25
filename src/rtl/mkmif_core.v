@@ -254,7 +254,7 @@ module mkmif_core(
 
         CTRL_OP_START:
           begin
-            spi_start  = 1;
+            spi_start      = 1;
             mkmif_ctrl_new = CTRL_OP_WAIT;
             mkmif_ctrl_we  = 1;
           end
@@ -263,6 +263,8 @@ module mkmif_core(
           begin
             if (spi_ready)
               begin
+                valid_new      = 1;
+                valid_we       = 1;
                 mkmif_ctrl_new = CTRL_READY;
                 mkmif_ctrl_we  = 1;
               end

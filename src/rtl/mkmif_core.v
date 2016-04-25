@@ -104,10 +104,8 @@ module mkmif_core(
   //----------------------------------------------------------------
   wire [31 : 0] spi_read_data;
   reg  [55 : 0] spi_write_data;
-  reg           spi_enable;
   reg           spi_set;
   reg           spi_start;
-  reg           spi_write;
   wire          spi_ready;
   reg   [2 : 0] spi_length;
 
@@ -185,6 +183,7 @@ module mkmif_core(
       spi_start      = 0;
       spi_length     = 3'h0;
       spi_write_data = 56'h0;
+      read_data_we   = 0;
       ready_new      = 0;
       ready_we       = 0;
       valid_new      = 0;
@@ -202,7 +201,6 @@ module mkmif_core(
         CTRL_INIT:
           begin
             spi_set        = 1;
-            spi_write      = 1;
             spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
             spi_length     = 3'h2;
             mkmif_ctrl_new = CTRL_OP_START;
@@ -263,6 +261,7 @@ module mkmif_core(
           begin
             if (spi_ready)
               begin
+                read_data_we   = 1;
                 valid_new      = 1;
                 valid_we       = 1;
                 mkmif_ctrl_new = CTRL_READY;

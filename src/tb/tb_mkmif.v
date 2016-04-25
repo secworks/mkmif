@@ -45,7 +45,7 @@ module tb_mkmif();
   //----------------------------------------------------------------
   // Internal constant and parameter definitions.
   //----------------------------------------------------------------
-  parameter DEBUG = 0;
+  parameter DEBUG = 1;
 
   parameter CLK_HALF_PERIOD = 2;
   parameter CLK_PERIOD      = 2 * CLK_HALF_PERIOD;
@@ -59,9 +59,9 @@ module tb_mkmif();
   localparam ADDR_EMEM_ADDR    = 8'h10;
   localparam ADDR_EMEM_DATA    = 8'h20;
 
-  localparam CORE_NAME0        = 32'h73697068; // "siph"
-  localparam CORE_NAME1        = 32'h61736820; // "ash "
-  localparam CORE_VERSION      = 32'h322e3030; // "2.00"
+  localparam CORE_NAME0   = 32'h6d6b6d69; // "mkmi"
+  localparam CORE_NAME1   = 32'h66202020; // "f   "
+  localparam CORE_VERSION = 32'h302e3130; // "0.10"
 
 
   //----------------------------------------------------------------
@@ -82,6 +82,7 @@ module tb_mkmif();
   reg [7 : 0]   tb_address;
   reg [31 : 0]  tb_write_data;
   wire [31 : 0] tb_read_data;
+  reg           tb_dump_ports;
   wire          tb_error;
   reg [31 : 0]  read_data;
 
@@ -127,6 +128,9 @@ module tb_mkmif();
 
       if (DEBUG)
         $display("cycle = %8x:", cycle_ctr);
+
+      if (tb_dump_ports)
+        dump_ports();
     end // dut_monitor
 
 
@@ -151,27 +155,20 @@ module tb_mkmif();
 
 
   //----------------------------------------------------------------
-  // dump_inputs
-  // Dump the internal MKMIF state to std out.
+  // dump_ports
+  // Dump the status of the dut ports.
   //----------------------------------------------------------------
-  task dump_inputs;
+  task dump_ports;
     begin
-      $display("Inputs:");
+      $display("API ports:");
+      $display("");
+
+      $display("SPI ports:");
+      $display("clock: 0x%01x, en: 0x%01x, di: 0x%01x, do: 0x%01x:",
+               tb_spi_sclk, tb_spi_cs_n, tb_spi_di, tb_spi_do);
       $display("");
     end
-  endtask // dump_inputs
-
-
-  //----------------------------------------------------------------
-  // dump_outputs
-  // Dump the outputs from the Mkmif to std out.
-  //----------------------------------------------------------------
-  task dump_outputs;
-    begin
-      $display("Outputs:");
-      $display("");
-    end
-  endtask // dump_inputs
+  endtask // dump_ports
 
 
   //----------------------------------------------------------------
@@ -202,6 +199,7 @@ module tb_mkmif();
       tb_we         = 1'b0;
       tb_address    = 8'h00;
       tb_write_data = 32'h00;
+      tb_dump_ports = 0;
     end
   endtask // tb_init
 
@@ -338,6 +336,41 @@ module tb_mkmif();
 
 
   //----------------------------------------------------------------
+  // write_test
+  //
+  // Try to write a few words of data.
+  //----------------------------------------------------------------
+  task write_test;
+    begin
+      inc_test_ctr();
+      $display("\nTC2: Writing words to the memory.");
+      tb_dump_ports = 1;
+
+      write_word(ADDR_EMEM_ADDR, 16'h0010);
+      write_word(ADDR_EMEM_DATA, 32'hdeadbeef);
+      write_word(ADDR_CTRL, 32'h2);
+      #(1000 * CLK_PERIOD);
+      wait_ready();
+
+      write_word(ADDR_EMEM_ADDR, 16'h0020);
+      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
+      write_word(ADDR_CTRL, 32'h2);
+      #(1000 * CLK_PERIOD);
+      wait_ready();
+
+      write_word(ADDR_EMEM_ADDR, 16'h0100);
+      write_word(ADDR_EMEM_DATA, 32'h004488ff);
+      write_word(ADDR_CTRL, 32'h2);
+      #(1000 * CLK_PERIOD);
+      wait_ready();
+
+      tb_dump_ports = 0;
+      $display("\nTC2: Writing words to the memory done.");
+    end
+  endtask // write_test
+
+
+  //----------------------------------------------------------------
   // mkmif_test
   // The main test functionality.
   //----------------------------------------------------------------
@@ -348,6 +381,7 @@ module tb_mkmif();
       tb_init();
       toggle_reset();
       check_name_version();
+      write_test();
 
       $display("");
       $display("   -- Test of mkmif completed --");

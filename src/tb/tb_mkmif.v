@@ -2,7 +2,7 @@
 //
 // tb_mkmif.v
 // ------------
-// Testbench for the mkmif core wrapper.
+// Testbench for the mkmif top level wrapper.
 //
 //
 // Copyright (c) 2016, Assured AB

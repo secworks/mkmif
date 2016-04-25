@@ -243,7 +243,7 @@ module mkmif_spi(
             end
           else
             begin
-              clk_ctr_new = clk_ctr_reg;
+              clk_ctr_new = clk_ctr_reg + 1'b1;
               clk_ctr_we  = 1'b1;
             end
         end

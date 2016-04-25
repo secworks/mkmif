@@ -35,14 +35,28 @@
 #
 #=======================================================================
 
-TOP_SRC = ../src/rtl/mkmif.v ../src/rtl/mkmif_core.v ../src/rtl/mkmif_spi.v
+SPI_SRC = ../src/rtl/mkmif_spi.v
+SPI_TB = ../src/tb/tb_mkmif_spi.v
+
+CORE_SRC = ../src/rtl/mkmif_core.v $(SPI_SRC)
+CORE_TB = ../src/tb/tb_mkmif_core.v
+
+TOP_SRC = ../src/rtl/mkmif.v $(CORE_SRC)
 TOP_TB = ../src/tb/tb_mkmif.v
 
 CC = iverilog
 LINT=verilator
 
 
-all:    top
+all:    top core spi
+
+
+spi:	$(SPI_TB) $(SPI_SRC)
+	iverilog -Wall -o spi.sim $(SPI_TB) $(SPI_SRC)
+
+
+core:	$(CORE_TB) $(CORE_SRC)
+	iverilog -Wall -o core.sim $(CORE_TB) $(CORE_SRC)
 
 
 top:	$(TOP_TB) $(TOP_SRC)
@@ -61,6 +75,7 @@ help:
 	@echo "Supported targets:"
 	@echo "------------------"
 	@echo "all:      Build all simulation targets."
+	@echo "core:     Build the core simulation target."
 	@echo "top:      Build the top simulation target."
 	@echo "lint:     Run the linter on the source"
 	@echo "clean:    Delete all built files."

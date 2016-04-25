@@ -14,32 +14,13 @@ are protected against leakage to an attacker.
 
 The core will in a future version provide functionality to autonomosly
 protect against memory remanence effects by rotating bits in stored data
-and moving data to different addresses in the external memory.
+and moving data to different addresses in the external memory. The core
+will also be able to automously zeroise the memory when given an alarm.
 
 The current version however simply provides an interface to the slower,
-serial memory. The only security related functionality in the current
-version is the ability to automatically clear internal data registers
-from data written to the external memory after the write operation has
-been completed. Similarly, data read from the external memory will
-cleared after the data has been read from the API.
-
-To read data from the external memory an application needs to write the
-address data shall be stored in and then set the read bit in the control
-register. The ready bit will be set when the write operation has been
-completed and the data valid bit will be set. After the data address has
-been read via the API, the data valid will be cleared and the contents
-of the data register will be wiped.
-
-To write data to the external memory an application needs to write the
-address data shall be stored in, the data to be written and then set the
-write control bit in the control register. The ready bit will be set
-when the write operation has been completed.
+serial memory.
 
 Commands to read and write when ready is low will be ignored.
-
-The alarm input will trigger zeroisation of the memory. All commands
-will be ignored during zeroisation. If an alarm has been set, the alarm
-status bit will be set.
 
 
 ## Limitations ##
@@ -48,9 +29,7 @@ SPI clock divisor. The default divisor is set to generate an SPI clock
 of 100 kHz when the core clock is 50 MHz. For other speeds and other
 core frequencies the divisor will have to be adjusted.
 
-The core will only write complete 32-bit words. This means that the
-total number of words is 2048. The core will only accept addresses in
-the rang [0 .. 2047].
+The core will only write complete 32-bit words.
 
 
 ## Implementation ##
@@ -59,6 +38,12 @@ To Be Written.
 
 
 ## Status ##
+
+**(2016-04-25)**
+
+Refactored core into top_-, core- and spi-modules. Made the design much
+simpler. First implementation almost completed.
+
 
 **(2016-04-21)**
 

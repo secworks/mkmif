@@ -107,6 +107,12 @@ module mkmif_spi(
   reg          bit_ctr_done;
   reg          bit_ctr_we;
 
+  reg [2 : 0]  length_reg;
+  reg          length_we;
+
+  reg [15 : 0] divisor_reg;
+  reg          divisor_we;
+
   reg  [1 : 0] spi_ctrl_reg;
   reg  [1 : 0] spi_ctrl_new;
   reg          spi_ctrl_we;
@@ -141,6 +147,8 @@ module mkmif_spi(
           do_sample1_reg <= 1'h0;
           cs_n_reg       <= 1'h1;
           ready_reg      <= 1'h0;
+          length_reg     <= 3'h0;
+          divisor_reg    <= 16'h0;
           data_reg       <= 56'h0;
           sclk_reg       <= 1'h0;
           clk_ctr_reg    <= 16'h0;
@@ -160,6 +168,12 @@ module mkmif_spi(
 
           if (data_we)
             data_reg <= data_new;
+
+          if (length_we)
+            length_reg <= length;
+
+          if (divisor_we)
+            divisor_reg <= divisor;
 
           if (sclk_we)
             sclk_reg <= sclk_new;
@@ -221,6 +235,8 @@ module mkmif_spi(
 
       if (sclk_rst)
         begin
+          clk_ctr_new = 0;
+          clk_ctr_we  = 1;
           bit_ctr_rst = 1;
           sclk_new    = 0;
           sclk_we     = 1;
@@ -228,7 +244,7 @@ module mkmif_spi(
 
       if (sclk_en)
         begin
-          if (clk_ctr_reg == divisor)
+          if (clk_ctr_reg == divisor_reg)
             begin
               clk_ctr_new = 0;
               clk_ctr_we  = 1'b1;
@@ -262,7 +278,7 @@ module mkmif_spi(
       bit_ctr_we   = 1'b0;
       bit_ctr_done = 1'b0;
 
-      if (bit_ctr_reg == {length, 3'h0})
+      if (bit_ctr_reg == {length_reg, 3'h0})
         bit_ctr_done = 1'b1;
 
       if (bit_ctr_rst)
@@ -291,6 +307,8 @@ module mkmif_spi(
       cs_n_new     = 1;
       cs_n_we      = 0;
       data_set     = 0;
+      length_we    = 0;
+      divisor_we   = 0;
       ready_new    = 0;
       ready_we     = 0;
       spi_ctrl_new = CTRL_IDLE;
@@ -300,7 +318,11 @@ module mkmif_spi(
         CTRL_IDLE:
           begin
             if (set)
-              data_set = 1;
+              begin
+                data_set   = 1;
+                length_we  = 1;
+                divisor_we = 1;
+              end
 
             if (start)
               begin

@@ -61,7 +61,6 @@ module tb_mkmif_core();
   reg           tb_clk;
   reg           tb_reset_n;
   wire          tb_spi_sclk;
-  wire          tb_spi_cs_n;
   reg           tb_spi_do;
   wire          tb_spi_di;
   reg           tb_write_op;
@@ -122,8 +121,6 @@ module tb_mkmif_core();
       if (DEBUG)
         $display("cycle = %8x:", cycle_ctr);
         dump_state();
-
-      if (tb_dump_ports)
         dump_ports();
     end // dut_monitor
 
@@ -159,7 +156,7 @@ module tb_mkmif_core();
 
       $display("SPI ports:");
       $display("clock: 0x%01x, en: 0x%01x, di: 0x%01x, do: 0x%01x:",
-               tb_spi_sclk, tb_spi_cs_n, tb_spi_di, tb_spi_do);
+               tb_spi_sclk, tb_cs_n, tb_spi_di, tb_spi_do);
       $display("");
     end
   endtask // dump_ports

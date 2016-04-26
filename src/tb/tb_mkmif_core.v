@@ -72,7 +72,7 @@ module tb_mkmif_core();
   reg  [31 : 0] tb_write_data;
   wire [31 : 0] tb_read_data;
 
-  reg           tb_dump_ports;
+  reg           tb_display_state;
   reg [31 : 0]  read_data;
 
 
@@ -118,10 +118,11 @@ module tb_mkmif_core();
     begin : dut_monitor
       cycle_ctr = cycle_ctr + 1;
 
-      if (DEBUG)
-        $display("cycle = %8x:", cycle_ctr);
-        dump_state();
-        dump_ports();
+      if (tb_display_state)
+        begin
+          $display("cycle = %8x:", cycle_ctr);
+          dump_state();
+        end
     end // dut_monitor
 
 
@@ -146,23 +147,6 @@ module tb_mkmif_core();
 
 
   //----------------------------------------------------------------
-  // dump_ports
-  // Dump the status of the dut ports.
-  //----------------------------------------------------------------
-  task dump_ports;
-    begin
-      $display("API ports:");
-      $display("");
-
-      $display("SPI ports:");
-      $display("clock: 0x%01x, en: 0x%01x, di: 0x%01x, do: 0x%01x:",
-               tb_spi_sclk, tb_cs_n, tb_spi_di, tb_spi_do);
-      $display("");
-    end
-  endtask // dump_ports
-
-
-  //----------------------------------------------------------------
   // dump_state
   // Dump the internal MKMIF state to std out.
   //----------------------------------------------------------------
@@ -173,6 +157,8 @@ module tb_mkmif_core();
       $display("spi_write_data: 0x%014x", dut.spi_write_data);
       $display("spi_length: 0x%02x, spi_set: 0x%01x, spi_start: 0x%01x, spi_ready: 0x%01x",
                dut.spi_length, dut.spi_set, dut.spi_start, dut.spi_ready);
+      $display("sclk: 0x%01x, cs_n: 0x%01x, di: 0x%01x, do: 0x%01x:",
+               tb_spi_sclk, tb_cs_n, tb_spi_di, tb_spi_do);
       $display("");
     end
   endtask // dump_state
@@ -197,9 +183,27 @@ module tb_mkmif_core();
       tb_addr       = 16'h0010;
       tb_write_data = 32'haa55aa55;
 
-      tb_dump_ports = 0;
+      tb_display_state = 0;
     end
   endtask // tb_init
+
+
+  //----------------------------------------------------------------
+  // wait_ready()
+  //
+  // Wait for ready word to be set in the DUT API.
+  //----------------------------------------------------------------
+  task wait_ready;
+    reg ready;
+    begin
+      ready = 0;
+
+      while (tb_ready == 0)
+        begin
+          #(CLK_PERIOD);
+        end
+    end
+  endtask // read_word
 
 
   //----------------------------------------------------------------
@@ -222,6 +226,26 @@ module tb_mkmif_core();
 
 
   //----------------------------------------------------------------
+  // write_test
+  //----------------------------------------------------------------
+  task write_test;
+    begin
+      $display("  -- Write Test started.");
+      inc_test_ctr();
+      tb_display_state = 1;
+      tb_sclk_div      = 16'h0002;
+      tb_addr          = 16'h0012;
+      tb_write_data    = 32'hdeadbeef;
+      tb_write_op      = 1;
+      #(2 * CLK_PERIOD);
+      tb_write_op      = 0;
+      wait_ready();
+      $display("  -- Write Test done.");
+    end
+  endtask // write_test
+
+
+  //----------------------------------------------------------------
   // mkmif_core_test
   // The main test functionality.
   //----------------------------------------------------------------
@@ -231,7 +255,7 @@ module tb_mkmif_core();
 
       tb_init();
       toggle_reset();
-      #(1000 * CLK_PERIOD);
+      write_test();
 
       $display("");
       $display("   -- Test of mkmif core completed --");

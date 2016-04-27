@@ -61,7 +61,7 @@ module tb_mkmif_core();
   reg           tb_clk;
   reg           tb_reset_n;
   wire          tb_spi_sclk;
-  reg           tb_spi_do;
+  wire          tb_spi_do;
   wire          tb_spi_di;
   reg           tb_write_op;
   reg           tb_read_op;
@@ -74,6 +74,14 @@ module tb_mkmif_core();
 
   reg           tb_display_state;
   reg [31 : 0]  read_data;
+
+
+  //----------------------------------------------------------------
+  // Concurrent connectivity.
+  //----------------------------------------------------------------
+  // We loop back the inverted SPI serial transmit data from
+  // the DUT as the data from the memory (do) to the DUT.
+  assign tb_spi_do = ~tb_spi_di;
 
 
   //----------------------------------------------------------------
@@ -180,7 +188,6 @@ module tb_mkmif_core();
 
       tb_clk        = 0;
       tb_reset_n    = 1;
-      tb_spi_do     = 0;
       tb_write_op   = 0;
       tb_read_op    = 0;
       tb_sclk_div   = 16'h0002;

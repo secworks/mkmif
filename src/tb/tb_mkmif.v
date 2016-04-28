@@ -161,7 +161,9 @@ module tb_mkmif();
   //----------------------------------------------------------------
   task dump_state;
     begin
-      $display("mkmif_ctrl_reg: 0x%02x", dut.core.mkmif_ctrl_reg);
+
+      $display("mkmif_core_ctrl_reg: 0x%02x, core ready: 0x%01x, core valid: 0x%01x",
+               dut.core.mkmif_ctrl_reg, dut.core_ready, dut.core_valid);
       $display("sclk: 0x%01x, cs_n: 0x%01x, di: 0x%01x, do: 0x%01x, nxt: 0x%01x",
                tb_spi_sclk, tb_spi_cs_n, tb_spi_di, tb_spi_do, dut.core.spi.data_nxt);
       $display("spi_ctrl_reg: 0x%01x, spi_clk_ctr: 0x%04x, spi_bit_ctr: 0x%02x",
@@ -169,7 +171,7 @@ module tb_mkmif();
       $display("spi length: 0x%02x, spi divisor: 0x%04x, spi set: 0x%01x, spi start: 0x%01x, spi ready: 0x%01x",
                dut.core.spi.length_reg, dut.core.spi.divisor_reg, dut.core.spi.set, dut.core.spi.start, dut.core.spi.ready);
       $display("read data: 0x%08x, write_data: 0x%014x", dut.core.spi.rd_data, dut.core.spi.wr_data);
-      $display("spi data regh: 0x%014x", dut.core.spi.data_reg);
+      $display("spi data reg: 0x%014x", dut.core.spi.data_reg);
       $display("");
     end
   endtask // dump_state
@@ -202,7 +204,7 @@ module tb_mkmif();
   //----------------------------------------------------------------
   task toggle_reset;
     begin
-      $display("Toggling reset.");
+      $display("  --- Toggling reset started.");
       dump_state();
       #(2 * CLK_PERIOD);
       tb_reset_n = 0;
@@ -210,7 +212,8 @@ module tb_mkmif();
       @(negedge tb_clk)
       tb_reset_n = 1;
       dump_state();
-      $display("Toggling of reset done.");
+      $display("  --- Toggling of reset done.");
+      $display("");
     end
   endtask // toggle_reset
 
@@ -296,7 +299,7 @@ module tb_mkmif();
     begin
       inc_test_ctr();
 
-      $display("\nTC1: Reading name and version from dut.");
+      $display("  -- Test of reading name and version started.");
 
       read_word(ADDR_NAME0);
       name0 = read_data;
@@ -322,6 +325,9 @@ module tb_mkmif();
                    version[31 : 24], version[23 : 16], version[15 : 8], version[7 : 0]);
           $display("Expected version: %c%c%c%c",
                    CORE_VERSION[31 : 24], CORE_VERSION[23 : 16], CORE_VERSION[15 : 8], CORE_VERSION[7 : 0]);
+
+          $display("  -- Test of reading name and version done.");
+          $display("");
         end
     end
   endtask // check_name_version
@@ -335,8 +341,10 @@ module tb_mkmif();
   task write_test;
     begin
       inc_test_ctr();
-      $display("\nTC2: Writing words to the memory.");
+      $display("  -- Test of writing words to the memory started.");
 
+      wait_ready();
+      $display("Ready has been set. Starting write commands.");
       write_word(ADDR_EMEM_ADDR, 16'h0010);
       write_word(ADDR_EMEM_DATA, 32'hdeadbeef);
       write_word(ADDR_CTRL, 32'h2);
@@ -356,7 +364,8 @@ module tb_mkmif();
 //      wait_ready();
 
       tb_dump_state = 0;
-      $display("\nTC2: Writing words to the memory done.");
+      $display("  -- Test of writing words to the memory done.");
+      $display("");
     end
   endtask // write_test
 
@@ -367,7 +376,7 @@ module tb_mkmif();
   //----------------------------------------------------------------
   initial
     begin : mkmif_test
-      $display("   -- Test of mkmif started --");
+      $display("   --*** Test of mkmif started ***--");
 
       tb_init();
       toggle_reset();
@@ -375,7 +384,7 @@ module tb_mkmif();
       write_test();
 
       $display("");
-      $display("   -- Test of mkmif completed --");
+      $display("   --*** Test of mkmif completed ***--");
       $display("Tests executed: %04d", test_ctr);
       $display("Tests failed:   %04d", error_ctr);
       $finish;

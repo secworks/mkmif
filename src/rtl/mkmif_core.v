@@ -200,13 +200,15 @@ module mkmif_core(
 
         CTRL_INIT:
           begin
-            spi_set        = 1;
-            spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
-            spi_length     = 3'h2;
-            mkmif_ctrl_new = CTRL_OP_START;
-            mkmif_ctrl_we  = 1;
+            if (spi_ready)
+              begin
+                spi_set        = 1;
+                spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
+                spi_length     = 3'h2;
+                mkmif_ctrl_new = CTRL_OP_START;
+                mkmif_ctrl_we  = 1;
+              end
           end
-
 
         CTRL_READY:
           begin

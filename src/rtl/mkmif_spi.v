@@ -317,6 +317,9 @@ module mkmif_spi(
       case (spi_ctrl_reg)
         CTRL_IDLE:
           begin
+            ready_new = 1;
+            ready_we  = 1;
+
             if (set)
               begin
                 data_set   = 1;
@@ -335,7 +338,7 @@ module mkmif_spi(
 
         CTRL_START:
           begin
-            sclk_rst    = 0;
+            sclk_rst    = 1;
             cs_n_new    = 0;
             cs_n_we     = 1;
             spi_ctrl_new = CTRL_WAIT;

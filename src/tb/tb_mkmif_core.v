@@ -161,16 +161,13 @@ module tb_mkmif_core();
   task dump_state;
     begin
       $display("mkmif_ctrl_reg: 0x%02x", dut.mkmif_ctrl_reg);
-      $display("spi_length: 0x%02x, spi_set: 0x%01x, spi_start: 0x%01x, spi_ready: 0x%01x",
-               dut.spi_length, dut.spi_set, dut.spi_start, dut.spi_ready);
-      $display("sclk: 0x%01x, cs_n: 0x%01x, di: 0x%01x, do: 0x%01x:",
-               tb_spi_sclk, tb_cs_n, tb_spi_di, tb_spi_do);
-      $display("spi_ctrl_reg: 0x%02x, spi_clk_ctr: 0x%04x, spi_bit_ctr: 0x%02x",
+      $display("sclk: 0x%01x, cs_n: 0x%01x, di: 0x%01x, do: 0x%01x, nxt: 0x%01x",
+               tb_spi_sclk, tb_cs_n, tb_spi_di, tb_spi_do, dut.spi.data_nxt);
+      $display("spi_ctrl_reg: 0x%01x, spi_clk_ctr: 0x%04x, spi_bit_ctr: 0x%02x",
                dut.spi.spi_ctrl_reg, dut.spi.clk_ctr_reg, dut.spi.bit_ctr_reg);
-      $display("length: 0x%02x, divisor: 0x%04x, set: 0x%01x, start: 0x%01x, ready: 0x%01x",
+      $display("spi length: 0x%02x, spi divisor: 0x%04x, spi set: 0x%01x, spi start: 0x%01x, spi ready: 0x%01x",
                dut.spi.length_reg, dut.spi.divisor_reg, dut.spi.set, dut.spi.start, dut.spi.ready);
-      $display("read data: 0x%08x, write_data: 0x%014x",
-               dut.spi.rd_data, dut.spi.wr_data);
+      $display("read data: 0x%08x, write_data: 0x%014x", dut.spi.rd_data, dut.spi.wr_data);
       $display("");
     end
   endtask // dump_state
@@ -194,7 +191,7 @@ module tb_mkmif_core();
       tb_addr       = 16'h0010;
       tb_write_data = 32'haa55aa55;
 
-      tb_display_state = 0;
+      tb_display_state = 1;
     end
   endtask // tb_init
 
@@ -245,7 +242,6 @@ module tb_mkmif_core();
       $display("  -- Write Test started.");
       inc_test_ctr();
       wait_ready();
-      tb_display_state = 1;
       tb_sclk_div      = 16'h0004;
       tb_addr          = 16'h0012;
       tb_write_data    = 32'hdeadbeef;

@@ -82,7 +82,7 @@ module tb_mkmif();
   reg [7 : 0]   tb_address;
   reg [31 : 0]  tb_write_data;
   wire [31 : 0] tb_read_data;
-  reg           tb_dump_ports;
+  reg           tb_dump_state;
   wire          tb_error;
   reg [31 : 0]  read_data;
 
@@ -129,8 +129,8 @@ module tb_mkmif();
       if (DEBUG)
         $display("cycle = %8x:", cycle_ctr);
 
-      if (tb_dump_ports)
-        dump_ports();
+      if (tb_dump_state)
+        dump_state();
     end // dut_monitor
 
 
@@ -154,22 +154,6 @@ module tb_mkmif();
   endtask // inc_error_ctr
 
 
-  //----------------------------------------------------------------
-  // dump_ports
-  // Dump the status of the dut ports.
-  //----------------------------------------------------------------
-  task dump_ports;
-    begin
-      $display("API ports:");
-      $display("");
-
-      $display("SPI ports:");
-      $display("clock: 0x%01x, en: 0x%01x, di: 0x%01x, do: 0x%01x:",
-               tb_spi_sclk, tb_spi_cs_n, tb_spi_di, tb_spi_do);
-      $display("");
-    end
-  endtask // dump_ports
-
 
   //----------------------------------------------------------------
   // dump_state
@@ -177,7 +161,14 @@ module tb_mkmif();
   //----------------------------------------------------------------
   task dump_state;
     begin
-      $display("Internal state:");
+      $display("mkmif_ctrl_reg: 0x%02x", dut.core.mkmif_ctrl_reg);
+      $display("sclk: 0x%01x, cs_n: 0x%01x, di: 0x%01x, do: 0x%01x, nxt: 0x%01x",
+               tb_spi_sclk, tb_spi_cs_n, tb_spi_di, tb_spi_do, dut.core.spi.data_nxt);
+      $display("spi_ctrl_reg: 0x%01x, spi_clk_ctr: 0x%04x, spi_bit_ctr: 0x%02x",
+               dut.core.spi.spi_ctrl_reg, dut.core.spi.clk_ctr_reg, dut.core.spi.bit_ctr_reg);
+      $display("spi length: 0x%02x, spi divisor: 0x%04x, spi set: 0x%01x, spi start: 0x%01x, spi ready: 0x%01x",
+               dut.core.spi.length_reg, dut.core.spi.divisor_reg, dut.core.spi.set, dut.core.spi.start, dut.core.spi.ready);
+      $display("read data: 0x%08x, write_data: 0x%014x", dut.core.spi.rd_data, dut.core.spi.wr_data);
       $display("");
     end
   endtask // dump_state
@@ -199,7 +190,7 @@ module tb_mkmif();
       tb_we         = 1'b0;
       tb_address    = 8'h00;
       tb_write_data = 32'h00;
-      tb_dump_ports = 0;
+      tb_dump_state = 1;
     end
   endtask // tb_init
 
@@ -344,7 +335,6 @@ module tb_mkmif();
     begin
       inc_test_ctr();
       $display("\nTC2: Writing words to the memory.");
-      tb_dump_ports = 1;
 
       write_word(ADDR_EMEM_ADDR, 16'h0010);
       write_word(ADDR_EMEM_DATA, 32'hdeadbeef);
@@ -352,19 +342,19 @@ module tb_mkmif();
       #(1000 * CLK_PERIOD);
       wait_ready();
 
-      write_word(ADDR_EMEM_ADDR, 16'h0020);
-      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
-      write_word(ADDR_CTRL, 32'h2);
-      #(1000 * CLK_PERIOD);
-      wait_ready();
+//      write_word(ADDR_EMEM_ADDR, 16'h0020);
+//      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
+//      write_word(ADDR_CTRL, 32'h2);
+//      #(1000 * CLK_PERIOD);
+//      wait_ready();
+//
+//      write_word(ADDR_EMEM_ADDR, 16'h0100);
+//      write_word(ADDR_EMEM_DATA, 32'h004488ff);
+//      write_word(ADDR_CTRL, 32'h2);
+//      #(1000 * CLK_PERIOD);
+//      wait_ready();
 
-      write_word(ADDR_EMEM_ADDR, 16'h0100);
-      write_word(ADDR_EMEM_DATA, 32'h004488ff);
-      write_word(ADDR_CTRL, 32'h2);
-      #(1000 * CLK_PERIOD);
-      wait_ready();
-
-      tb_dump_ports = 0;
+      tb_dump_state = 0;
       $display("\nTC2: Writing words to the memory done.");
     end
   endtask // write_test

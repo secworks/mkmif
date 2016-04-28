@@ -96,7 +96,7 @@ module tb_mkmif();
 
             .spi_sclk(tb_spi_sclk),
             .spi_cs_n(tb_spi_cs_n),
-            .spi_do(tb_spi_do),
+            .spi_do(tb_spi_di),
             .spi_di(tb_spi_di),
 
             .cs(tb_cs),

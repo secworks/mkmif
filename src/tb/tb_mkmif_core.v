@@ -190,7 +190,7 @@ module tb_mkmif_core();
       tb_reset_n    = 1;
       tb_write_op   = 0;
       tb_read_op    = 0;
-      tb_sclk_div   = 16'h0002;
+      tb_sclk_div   = 16'h0004;
       tb_addr       = 16'h0010;
       tb_write_data = 32'haa55aa55;
 

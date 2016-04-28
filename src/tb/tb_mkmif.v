@@ -169,6 +169,7 @@ module tb_mkmif();
       $display("spi length: 0x%02x, spi divisor: 0x%04x, spi set: 0x%01x, spi start: 0x%01x, spi ready: 0x%01x",
                dut.core.spi.length_reg, dut.core.spi.divisor_reg, dut.core.spi.set, dut.core.spi.start, dut.core.spi.ready);
       $display("read data: 0x%08x, write_data: 0x%014x", dut.core.spi.rd_data, dut.core.spi.wr_data);
+      $display("spi data regh: 0x%014x", dut.core.spi.data_reg);
       $display("");
     end
   endtask // dump_state

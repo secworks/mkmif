@@ -350,6 +350,43 @@ module tb_mkmif();
       write_word(ADDR_CTRL, 32'h2);
       #(1000 * CLK_PERIOD);
       wait_ready();
+      $display("First write completed.");
+
+//      write_word(ADDR_EMEM_ADDR, 16'h0020);
+//      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
+//      write_word(ADDR_CTRL, 32'h2);
+//      #(1000 * CLK_PERIOD);
+//      wait_ready();
+
+//      write_word(ADDR_EMEM_ADDR, 16'h0100);
+//      write_word(ADDR_EMEM_DATA, 32'h004488ff);
+//      write_word(ADDR_CTRL, 32'h2);
+//      #(1000 * CLK_PERIOD);
+//      wait_ready();
+
+      $display("  -- Test of writing words to the memory done.");
+      $display("");
+    end
+  endtask // write_test
+
+
+  //----------------------------------------------------------------
+  // read_test
+  //
+  // Try to read a few words of data.
+  //----------------------------------------------------------------
+  task read_test;
+    begin
+      inc_test_ctr();
+      $display("  -- Test of reading from the memory started.");
+
+//      wait_ready();
+//      $display("Ready has been set. Starting write commands.");
+//      write_word(ADDR_EMEM_ADDR, 16'h0010);
+//      write_word(ADDR_EMEM_DATA, 32'hdeadbeef);
+//      write_word(ADDR_CTRL, 32'h2);
+//      #(1000 * CLK_PERIOD);
+//      wait_ready();
 
 //      write_word(ADDR_EMEM_ADDR, 16'h0020);
 //      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
@@ -363,11 +400,10 @@ module tb_mkmif();
 //      #(1000 * CLK_PERIOD);
 //      wait_ready();
 
-      tb_dump_state = 0;
-      $display("  -- Test of writing words to the memory done.");
+      $display("  -- Test of reading from the memory done.");
       $display("");
     end
-  endtask // write_test
+  endtask // read_test
 
 
   //----------------------------------------------------------------
@@ -382,6 +418,7 @@ module tb_mkmif();
       toggle_reset();
       check_name_version();
       write_test();
+      read_test();
 
       $display("");
       $display("   --*** Test of mkmif completed ***--");

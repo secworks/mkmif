@@ -48,18 +48,18 @@ CC = iverilog
 LINT=verilator
 
 
-all:    top core spi
+all:    top.sim core.sim spi.sim
 
 
-spi:	$(SPI_TB) $(SPI_SRC)
+spi.sim:	$(SPI_TB) $(SPI_SRC)
 	iverilog -Wall -o spi.sim $(SPI_TB) $(SPI_SRC)
 
 
-core:	$(CORE_TB) $(CORE_SRC)
+core.sim:	$(CORE_TB) $(CORE_SRC)
 	iverilog -Wall -o core.sim $(CORE_TB) $(CORE_SRC)
 
 
-top:	$(TOP_TB) $(TOP_SRC)
+top.sim:	$(TOP_TB) $(TOP_SRC)
 	iverilog -Wall -o top.sim $(TOP_TB) $(TOP_SRC)
 
 

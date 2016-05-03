@@ -75,7 +75,7 @@ module mkmif(
   localparam ADDR_EMEM_ADDR   = 8'h10;
   localparam ADDR_EMEM_DATA   = 8'h20;
 
-  localparam DEFAULT_SCLK_DIV = 16'h0010;
+  localparam DEFAULT_SCLK_DIV = 16'h0020;
 
   localparam CORE_NAME0   = 32'h6d6b6d69; // "mkmi"
   localparam CORE_NAME1   = 32'h66202020; // "f   "

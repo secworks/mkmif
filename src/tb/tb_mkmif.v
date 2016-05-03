@@ -348,15 +348,18 @@ module tb_mkmif();
       write_word(ADDR_EMEM_ADDR, 16'h0010);
       write_word(ADDR_EMEM_DATA, 32'hdeadbeef);
       write_word(ADDR_CTRL, 32'h2);
-      #(1000 * CLK_PERIOD);
+      #(10 * CLK_PERIOD);
       wait_ready();
-      $display("First write completed.");
+      read_word(ADDR_EMEM_DATA);
+      $display("First write completed. Read: 0x%08x", read_data);
 
-//      write_word(ADDR_EMEM_ADDR, 16'h0020);
-//      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
-//      write_word(ADDR_CTRL, 32'h2);
-//      #(1000 * CLK_PERIOD);
-//      wait_ready();
+      write_word(ADDR_EMEM_ADDR, 16'h0020);
+      write_word(ADDR_EMEM_DATA, 32'haa55aa55);
+      write_word(ADDR_CTRL, 32'h2);
+      #(10 * CLK_PERIOD);
+      wait_ready();
+      read_word(ADDR_EMEM_DATA);
+      $display("Second write completed. Read: 0x%08x", read_data);
 
 //      write_word(ADDR_EMEM_ADDR, 16'h0100);
 //      write_word(ADDR_EMEM_DATA, 32'h004488ff);

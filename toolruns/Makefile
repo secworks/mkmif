@@ -64,7 +64,7 @@ top.sim:	$(TOP_TB) $(TOP_SRC)
 
 
 lint:
-	verilator --lint-only -Wall $(TOP_SRC)
+	verilator +1364-2001ext+ --lint-only -Wall $(TOP_SRC)
 
 
 clean:

@@ -251,7 +251,7 @@ module mkmif_spi(
               sclk_new    = ~sclk_reg;
               sclk_we     = 1;
 
-              if (!sclk_reg)
+              if (sclk_reg)
                 begin
                   bit_ctr_inc = 1;
                   data_nxt    = 1;
@@ -331,6 +331,7 @@ module mkmif_spi(
               begin
                 ready_new    = 0;
                 ready_we     = 1;
+                sclk_rst     = 1;
                 spi_ctrl_new = CTRL_START;
                 spi_ctrl_we  = 1;
               end
@@ -338,7 +339,6 @@ module mkmif_spi(
 
         CTRL_START:
           begin
-            sclk_rst    = 1;
             cs_n_new    = 0;
             cs_n_we     = 1;
             spi_ctrl_new = CTRL_WAIT;

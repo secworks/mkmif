@@ -63,8 +63,9 @@ module tb_mkmif_core();
   wire          tb_spi_sclk;
   wire          tb_spi_do;
   wire          tb_spi_di;
-  reg           tb_write_op;
   reg           tb_read_op;
+  reg           tb_write_op;
+  reg           tb_init_op;
   wire          tb_ready;
   wire          tb_valid;
   reg  [15 : 0] tb_sclk_div;
@@ -96,8 +97,9 @@ module tb_mkmif_core();
                  .spi_do(tb_spi_do),
                  .spi_di(tb_spi_di),
 
-                 .write_op(tb_write_op),
                  .read_op(tb_read_op),
+                 .write_op(tb_write_op),
+                 .init_op(tb_init_op),
                  .ready(tb_ready),
                  .valid(tb_valid),
                  .sclk_div(tb_sclk_div),
@@ -185,8 +187,9 @@ module tb_mkmif_core();
 
       tb_clk        = 0;
       tb_reset_n    = 1;
-      tb_write_op   = 0;
       tb_read_op    = 0;
+      tb_write_op   = 0;
+      tb_init_op    = 0;
       tb_sclk_div   = 16'h0004;
       tb_addr       = 16'h0010;
       tb_write_data = 32'haa55aa55;

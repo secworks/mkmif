@@ -51,8 +51,9 @@ module mkmif_core(
                   input wire           spi_do,
                   output wire          spi_di,
 
-                  input wire           write_op,
                   input wire           read_op,
+                  input wire           write_op,
+                  input wire           init_op,
                   output wire          ready,
                   output wire          valid,
                   input wire [15 : 0]  sclk_div,
@@ -73,10 +74,10 @@ module mkmif_core(
   localparam SEQ_MODE_NO_HOLD = 8'b01000001;
 
   localparam CTRL_IDLE        = 0;
-  localparam CTRL_INIT        = 1;
-  localparam CTRL_READY       = 2;
-  localparam CTRL_READ        = 3;
-  localparam CTRL_WRITE       = 4;
+  localparam CTRL_READY       = 1;
+  localparam CTRL_READ        = 2;
+  localparam CTRL_WRITE       = 3;
+  localparam CTRL_INIT        = 4;
   localparam CTRL_OP_START    = 5;
   localparam CTRL_OP_WAIT     = 6;
 
@@ -198,18 +199,6 @@ module mkmif_core(
             mkmif_ctrl_we  = 1;
           end
 
-        CTRL_INIT:
-          begin
-            if (spi_ready)
-              begin
-                spi_set        = 1;
-                spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
-                spi_length     = 3'h2;
-                mkmif_ctrl_new = CTRL_OP_START;
-                mkmif_ctrl_we  = 1;
-              end
-          end
-
         CTRL_READY:
           begin
             ready_new = 1;
@@ -232,6 +221,14 @@ module mkmif_core(
                 mkmif_ctrl_new = CTRL_WRITE;
                 mkmif_ctrl_we  = 1;
               end
+
+            if (init_op)
+              begin
+                ready_new      = 0;
+                ready_we       = 1;
+                mkmif_ctrl_new = CTRL_INIT;
+                mkmif_ctrl_we  = 1;
+              end
           end
 
         CTRL_READ:
@@ -250,6 +247,18 @@ module mkmif_core(
             spi_length     = 3'h7;
             mkmif_ctrl_new = CTRL_OP_START;
             mkmif_ctrl_we  = 1;
+          end
+
+        CTRL_INIT:
+          begin
+            if (spi_ready)
+              begin
+                spi_set        = 1;
+                spi_write_data = {SPI_WRITE_STATUS_CMD, SEQ_MODE_NO_HOLD, 40'h0};
+                spi_length     = 3'h2;
+                mkmif_ctrl_new = CTRL_OP_START;
+                mkmif_ctrl_we  = 1;
+              end
           end
 
         CTRL_OP_START:

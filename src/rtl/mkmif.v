@@ -68,6 +68,7 @@ module mkmif(
   localparam ADDR_CTRL        = 8'h08;
   localparam CTRL_READ_BIT    = 0;
   localparam CTRL_WRITE_BIT   = 1;
+  localparam CTRL_INIT_BIT    = 2;
   localparam ADDR_STATUS      = 8'h09;
   localparam STATUS_READY_BIT = 0;
   localparam STATUS_VALID_BIT = 1;
@@ -89,6 +90,8 @@ module mkmif(
   reg          read_op_new;
   reg          write_op_reg;
   reg          write_op_new;
+  reg          init_op_reg;
+  reg          init_op_new;
 
   reg [15 : 0] addr_reg;
   reg          addr_we;
@@ -127,8 +130,9 @@ module mkmif(
                   .spi_do(spi_do),
                   .spi_di(spi_di),
 
-                  .write_op(write_op_reg),
                   .read_op(read_op_reg),
+                  .write_op(write_op_reg),
+                  .init_op(init_op_reg),
                   .ready(core_ready),
                   .valid(core_valid),
                   .sclk_div(sclk_div_reg),
@@ -158,6 +162,7 @@ module mkmif(
         begin
           read_op_reg  <= read_op_new;
           write_op_reg <= write_op_new;
+          init_op_reg  <= init_op_new;
 
           if (sclk_div_we)
             sclk_div_reg <= write_data[15 : 0];
@@ -178,6 +183,7 @@ module mkmif(
     begin : api
       read_op_new   = 0;
       write_op_new  = 0;
+      init_op_new   = 0;
       addr_we       = 0;
       sclk_div_we   = 0;
       write_data_we = 0;
@@ -192,6 +198,7 @@ module mkmif(
                   begin
                     read_op_new  = write_data[CTRL_READ_BIT];
                     write_op_new = write_data[CTRL_WRITE_BIT];
+                    init_op_new  = write_data[CTRL_INIT_BIT];
                   end
 
                 ADDR_SCLK_DIV:

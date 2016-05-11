@@ -1,8 +1,6 @@
 # Master Key Memory Interface #
 This core provides a 32-bit interface to a master key memory (MKM)
-implemented using an external volatile memory.
-
-The memory targeted is
+implemented using an external volatile memory. The memory targeted is
 ([Microchip 23K640](https://www.microchip.com/wwwproducts/en/23K640)), a
 serial SRAM with a SPI interface.
 

@@ -6,21 +6,24 @@ The memory targeted is
 ([Microchip 23K640](https://www.microchip.com/wwwproducts/en/23K640)), a
 serial SRAM with a SPI interface.
 
+
 ## Purpose and Functionality ##
 The Master Key Memory is where a cryptographic master key is stored. the
 key is used (for example) to cryptographically wrap other keys and
 secrets. By wiping the MKM and thus the master key, the wrapped secrets
-are protected against leakage to an attacker.
+are protected against leakage to a local attacker that physically breaks
+an actuve tamper detect shield.
 
-The core will in a future version provide functionality to autonomosly
+The core will in future versions provide functionality to autonomosly
 protect against memory remanence effects by rotating bits in stored data
 and moving data to different addresses in the external memory. The core
-will also be able to automously zeroise the memory when given an alarm.
+will also be able to automously zeroise the memory when given an alarm
+signal.
 
 The current version however simply provides an interface to the slower,
-serial memory.
-
-Read and write commands given while ready is low will be ignored.
+serial memory including initializing the memory in the correct mode. The
+core supports three commands: read word, write word and initalize
+memory.
 
 
 ## Limitations ##
@@ -30,10 +33,27 @@ default divisor is set to generate an SPI clock of less than 1 MHz when
 the core clock is 50 MHz. For other speeds and other
 core frequencies the divisor will have to be adjusted.
 
-The core will only write complete 32-bit words.
+The core will only read and write complete 32-bit words.
+
+Commands given while the core is performing a read, write or
+initialization operation will silently be ignored.
 
 
 ## Implementation ##
+The implementation is divided into three parts:
+
+- A SPI interface able to transmit a given number of bits at a given SPI
+  clock rate. Data received are simultaneously collected and provided as
+  read data. The SPI interface also generates the SPI clock and chip
+  enable.
+
+- A command handler core that tha read and write words as well as send
+  init commands to the memory using the SPI interface.
+
+- An API interface that provides the ability to configure the SPI clock
+  speed, setting the address to be read or written and data access.
+
+
 The current implementation will initiate the Microchip memory directly
 after reset and set the memory in sequential mode. This means that it
 would actually be possible to write a stream of data to the memory, but
@@ -72,6 +92,13 @@ to remove the need to update the address between bytes.
 
 
 ## Status ##
+
+**(2016-05-10)**
+
+The core has now been verified in a Xilinx Spartan-6 FPGA and the target
+Microchip memory connected to the FPGA.memory. Read and write access has
+successfully been performed with SPI clock speeds from 300 Hz to 10 MHz.
+
 
 **(2016-05-02)**
 

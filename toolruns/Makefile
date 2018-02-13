@@ -44,27 +44,30 @@ CORE_TB = ../src/tb/tb_mkmif_core.v
 TOP_SRC = ../src/rtl/mkmif.v $(CORE_SRC)
 TOP_TB = ../src/tb/tb_mkmif.v
 
-CC = iverilog
+CC=iverilog
+CC_FLAGS= -Wall
+
 LINT=verilator
+LINT_FLAGS = +1364-2001ext+ --lint-only -Wall -Wno-fatal -Wno-DECLFILENAME
 
 
 all:    top.sim core.sim spi.sim
 
 
 spi.sim:	$(SPI_TB) $(SPI_SRC)
-	iverilog -Wall -o spi.sim $(SPI_TB) $(SPI_SRC)
+	$(CC) $(CC_FLAGS) -o spi.sim $(SPI_TB) $(SPI_SRC)
 
 
 core.sim:	$(CORE_TB) $(CORE_SRC)
-	iverilog -Wall -o core.sim $(CORE_TB) $(CORE_SRC)
+	$(CC) $(CC_FLAGS) -o core.sim $(CORE_TB) $(CORE_SRC)
 
 
 top.sim:	$(TOP_TB) $(TOP_SRC)
-	iverilog -Wall -o top.sim $(TOP_TB) $(TOP_SRC)
+	$(CC) $(CC_FLAGS) -o top.sim $(TOP_TB) $(TOP_SRC)
 
 
-lint:
-	verilator +1364-2001ext+ --lint-only -Wall $(TOP_SRC)
+lint: $(TOP_SRC)
+	$(LINT) $(LINT_FLAGS) $(TOP_SRC)
 
 
 clean:
